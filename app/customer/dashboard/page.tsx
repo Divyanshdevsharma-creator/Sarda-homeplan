@@ -1482,6 +1482,9 @@ export default function CustomerDashboardPage() {
       localStorage.removeItem("sarada_admin_last_uploaded_mistri_sheet");
       localStorage.removeItem("sarada_last_uploaded_sketch");
       localStorage.removeItem("sarada_last_uploaded_sketch_name");
+
+      document.cookie = "sarda_customer_logged_in=; path=/; max-age=0;";
+      document.cookie = "sarada_customer_logged_in=; path=/; max-age=0;";
     }
     window.location.href = "/";
   };
@@ -1665,6 +1668,19 @@ export default function CustomerDashboardPage() {
                 setMobileMenuOpen(false);
               }}
             />
+            <Link
+              href="/customer/feedback"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex h-[48px] w-full items-center justify-between rounded-[16px] px-4 text-left text-white/85 transition hover:bg-white/10 hover:text-white"
+            >
+              <div className="flex items-center gap-4">
+                <MessageCircle size={21} strokeWidth={1.9} />
+                <span className="text-[14px] font-medium">Feedback & Review</span>
+              </div>
+              <span className="rounded-full bg-[#f4cf72] px-2 py-0.5 text-[10px] font-bold text-[#063b2c]">
+                Rate Us
+              </span>
+            </Link>
           </div>
         </div>
 

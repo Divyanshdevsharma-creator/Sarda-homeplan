@@ -52,6 +52,28 @@ export default function CustomerLoginPage() {
     setOtpMessage(`Verification OTP: ${randomOtp} (Sent via SMS / WhatsApp)`);
   };
 
+  const getTargetUrl = () => {
+    if (typeof window !== "undefined") {
+      const nextParam = new URLSearchParams(window.location.search).get("next");
+      if (nextParam && nextParam.startsWith("/") && !nextParam.startsWith("/customer/login")) {
+        return nextParam;
+      }
+    }
+    return "/customer/dashboard";
+  };
+
+  const persistCustomerSession = (payload: any) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("sarda_customer_session", JSON.stringify(payload));
+      localStorage.setItem("sarada_customer_session", JSON.stringify(payload));
+      localStorage.setItem("sarda_customer_logged_in", "true");
+      localStorage.setItem("sarada_customer_logged_in", "true");
+
+      document.cookie = "sarda_customer_logged_in=true; path=/; max-age=604800; SameSite=Lax";
+      document.cookie = "sarada_customer_logged_in=true; path=/; max-age=604800; SameSite=Lax";
+    }
+  };
+
   // Google OAuth Login Handler
   const handleGoogleLogin = async () => {
     setIsLoading(true);
@@ -59,16 +81,11 @@ export default function CustomerLoginPage() {
     const supabase = createClient();
 
     try {
-      await supabase.auth.signOut().catch(() => {});
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("sarada_customer_session");
-        localStorage.removeItem("sarada_customer_logged_in");
-      }
-
+      const targetNext = getTargetUrl();
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/customer/dashboard`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(targetNext)}`,
         },
       });
 
@@ -166,24 +183,19 @@ export default function CustomerLoginPage() {
       } catch (_) {}
 
       // Establish session
-      if (typeof window !== "undefined") {
-        const sessionPayload = {
-          id: existingId,
-          full_name: customerName,
-          mobile: cleanMobile,
-          email: `${cleanMobile}@sardahomeplan.com`,
-          village_city: userCity,
-          district: userDistrict,
-          logged_in_at: new Date().toISOString(),
-        };
-        localStorage.setItem("sarda_customer_session", JSON.stringify(sessionPayload));
-        localStorage.setItem("sarda_customer_logged_in", "true");
-        localStorage.setItem("sarada_customer_session", JSON.stringify(sessionPayload));
-        localStorage.setItem("sarada_customer_logged_in", "true");
-      }
+      const sessionPayload = {
+        id: existingId,
+        full_name: customerName,
+        mobile: cleanMobile,
+        email: `${cleanMobile}@sardahomeplan.com`,
+        village_city: userCity,
+        district: userDistrict,
+        logged_in_at: new Date().toISOString(),
+      };
+      persistCustomerSession(sessionPayload);
 
       setIsLoading(false);
-      router.push("/customer/dashboard");
+      router.push(getTargetUrl());
       return;
     }
 
@@ -221,21 +233,16 @@ export default function CustomerLoginPage() {
       }
 
       if (!authError && authData?.user) {
-        if (typeof window !== "undefined") {
-          const sessionPayload = {
-            id: authData.user.id,
-            full_name: authData.user.user_metadata?.full_name || "Customer",
-            mobile: cleanMobile,
-            email: phoneEmail,
-            logged_in_at: new Date().toISOString(),
-          };
-          localStorage.setItem("sarda_customer_session", JSON.stringify(sessionPayload));
-          localStorage.setItem("sarda_customer_logged_in", "true");
-          localStorage.setItem("sarada_customer_session", JSON.stringify(sessionPayload));
-          localStorage.setItem("sarada_customer_logged_in", "true");
-        }
+        const sessionPayload = {
+          id: authData.user.id,
+          full_name: authData.user.user_metadata?.full_name || "Customer",
+          mobile: cleanMobile,
+          email: phoneEmail,
+          logged_in_at: new Date().toISOString(),
+        };
+        persistCustomerSession(sessionPayload);
         setIsLoading(false);
-        router.push("/customer/dashboard");
+        router.push(getTargetUrl());
         return;
       }
 
@@ -252,34 +259,29 @@ export default function CustomerLoginPage() {
           password,
         });
         if (!emErr && emData.user) {
-          if (typeof window !== "undefined") {
-            localStorage.setItem(
-              "sarada_customer_session",
-              JSON.stringify({
-                id: emData.user.id,
-                full_name: prof.full_name || "Customer",
-                mobile: cleanMobile,
-                email: prof.email,
-              })
-            );
-            localStorage.setItem("sarada_customer_logged_in", "true");
-          }
+          const sessionPayload = {
+            id: emData.user.id,
+            full_name: prof.full_name || "Customer",
+            mobile: cleanMobile,
+            email: prof.email,
+          };
+          persistCustomerSession(sessionPayload);
           setIsLoading(false);
-          router.push("/customer/dashboard");
+          router.push(getTargetUrl());
           return;
         }
       }
 
       // Fallback: If password provided is valid or local
       if (typeof window !== "undefined") {
-        const localSession = localStorage.getItem("sarada_customer_session");
+        const localSession = localStorage.getItem("sarada_customer_session") || localStorage.getItem("sarda_customer_session");
         if (localSession) {
           try {
             const parsed = JSON.parse(localSession);
             if (parsed.mobile === cleanMobile) {
-              localStorage.setItem("sarada_customer_logged_in", "true");
+              persistCustomerSession(parsed);
               setIsLoading(false);
-              router.push("/customer/dashboard");
+              router.push(getTargetUrl());
               return;
             }
           } catch (_) {}
@@ -316,22 +318,19 @@ export default function CustomerLoginPage() {
         // Check if rate limited or unconfirmed
         if (error.message.toLowerCase().includes("email not confirmed")) {
           // Allow customer into dashboard using cached profile
-          if (typeof window !== "undefined") {
-            const fallbackUuid =
-              typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-                ? crypto.randomUUID()
-                : "00000000-0000-4000-8000-" + String(Date.now()).padStart(12, "0");
-            const sessionPayload = {
-              id: fallbackUuid,
-              email: cleanEmail,
-              full_name: "Customer",
-              logged_in_at: new Date().toISOString(),
-            };
-            localStorage.setItem("sarada_customer_session", JSON.stringify(sessionPayload));
-            localStorage.setItem("sarada_customer_logged_in", "true");
-          }
+          const fallbackUuid =
+            typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+              ? crypto.randomUUID()
+              : "00000000-0000-4000-8000-" + String(Date.now()).padStart(12, "0");
+          const sessionPayload = {
+            id: fallbackUuid,
+            email: cleanEmail,
+            full_name: "Customer",
+            logged_in_at: new Date().toISOString(),
+          };
+          persistCustomerSession(sessionPayload);
           setIsLoading(false);
-          router.push("/customer/dashboard");
+          router.push(getTargetUrl());
           return;
         }
 
@@ -340,7 +339,7 @@ export default function CustomerLoginPage() {
         return;
       }
 
-      if (typeof window !== "undefined" && authData?.user) {
+      if (authData?.user) {
         const metadata = authData.user.user_metadata || {};
         const sessionPayload = {
           id: authData.user.id,
@@ -351,12 +350,11 @@ export default function CustomerLoginPage() {
           district: metadata.district || "",
           logged_in_at: new Date().toISOString(),
         };
-        localStorage.setItem("sarada_customer_session", JSON.stringify(sessionPayload));
-        localStorage.setItem("sarada_customer_logged_in", "true");
+        persistCustomerSession(sessionPayload);
       }
 
       setIsLoading(false);
-      router.push("/customer/dashboard");
+      router.push(getTargetUrl());
     }
   };
 

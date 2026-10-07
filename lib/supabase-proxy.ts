@@ -8,77 +8,99 @@ export async function updateSession(request: NextRequest) {
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         getAll() {
           return request.cookies.getAll();
         },
-
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(
-            ({ name, value, options }) => {
-              request.cookies.set(name, value);
-            }
-          );
+          cookiesToSet.forEach(({ name, value }) => {
+            request.cookies.set(name, value);
+          });
 
           supabaseResponse = NextResponse.next({
             request,
           });
 
-          cookiesToSet.forEach(
-            ({ name, value, options }) => {
-              supabaseResponse.cookies.set(
-                name,
-                value,
-                options
-              );
-            }
-          );
+          cookiesToSet.forEach(({ name, value, options }) => {
+            supabaseResponse.cookies.set(name, value, options);
+          });
         },
       },
     }
   );
 
-  /*
-   * IMPORTANT:
-   * getClaims() verifies the authenticated user's
-   * JWT and is the method recommended by Supabase
-   * for protecting routes.
-   */
-  const { data: claims, error: claimsError } =
-  await supabase.auth.getClaims();
+  // Server-side user verification using getUser() as recommended by Supabase
+  let authUser = null;
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    authUser = user;
+  } catch (_) {
+    authUser = null;
+  }
 
   const pathname = request.nextUrl.pathname;
+  const search = request.nextUrl.search;
 
-  /*
-   * Protect everything under /admin
-   * except /admin/login
-   */
-  const isAdminRoute =
-    pathname === "/admin" ||
-    pathname.startsWith("/admin/");
+  // Check customer session cookies
+  const hasCustomerCookie =
+    request.cookies.get("sarda_customer_logged_in")?.value === "true" ||
+    request.cookies.get("sarada_customer_logged_in")?.value === "true";
 
-  const isLoginPage =
-    pathname === "/admin/login";
+  const isCustomerLoggedIn = Boolean(authUser || hasCustomerCookie);
 
-  if (isAdminRoute && !isLoginPage && !claims) {
+  // 1. Protected Customer Routes
+  const isProtectedCustomerRoute =
+    pathname === "/customer/dashboard" ||
+    pathname.startsWith("/customer/dashboard/") ||
+    pathname === "/customer/feedback" ||
+    pathname.startsWith("/customer/feedback/");
+
+  if (isProtectedCustomerRoute && !isCustomerLoggedIn) {
     const url = request.nextUrl.clone();
-
-    url.pathname = "/admin/login";
-
+    url.pathname = "/customer/login";
+    url.searchParams.set("next", `${pathname}${search}`);
     return NextResponse.redirect(url);
   }
 
-  /*
-   * If already logged in and user opens login page,
-   * send them back to dashboard.
-   */
-  if (isLoginPage && claims) {
+  // 2. Customer Auth pages (/customer/login, /customer/signup)
+  const isCustomerAuthPage =
+    pathname === "/customer/login" || pathname === "/customer/signup";
+
+  if (isCustomerAuthPage && isCustomerLoggedIn) {
+    const nextParam = request.nextUrl.searchParams.get("next");
+    if (nextParam && nextParam.startsWith("/") && !nextParam.startsWith("/customer/login")) {
+      const url = new URL(nextParam, request.url);
+      return NextResponse.redirect(url);
+    }
+  }
+
+  // 3. Admin Routes
+  const isAdminRoute =
+    pathname === "/admin" || pathname.startsWith("/admin/");
+  const isAdminLoginPage =
+    pathname === "/admin/login" || pathname === "/admin/forgot-password";
+
+  const hasAdminCookie =
+    request.cookies.get("sarada_admin_logged_in")?.value === "true" ||
+    request.cookies.get("sarda_admin_logged_in")?.value === "true";
+
+  const isAdminLoggedIn = Boolean(hasAdminCookie || (authUser && authUser.email?.includes("admin")));
+
+  if (isAdminRoute && !isAdminLoginPage && !isAdminLoggedIn) {
     const url = request.nextUrl.clone();
+    url.pathname = "/admin/login";
+    return NextResponse.redirect(url);
+  }
 
+  if (isAdminLoginPage && isAdminLoggedIn) {
+    const url = request.nextUrl.clone();
     url.pathname = "/admin";
-
+    url.search = "";
     return NextResponse.redirect(url);
   }
 

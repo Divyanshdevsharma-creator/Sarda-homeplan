@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 
 import { useEffect, useState, useMemo, type ComponentType } from "react";
+import Link from "next/link";
 import { createClient } from "../../lib/supabase-client";
 
 type IconType = ComponentType<{
@@ -1059,7 +1060,18 @@ export default function AdminDashboard() {
 
   const handleLogout = async () => {
     const supabase = createClient();
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (_) {}
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("sarada_admin_logged_in");
+      localStorage.removeItem("sarda_admin_logged_in");
+      localStorage.removeItem("sarada_admin_email");
+      localStorage.removeItem("sarada_admin_name");
+      localStorage.removeItem("sarada_admin_role");
+      document.cookie = "sarada_admin_logged_in=; path=/; max-age=0;";
+      document.cookie = "sarda_admin_logged_in=; path=/; max-age=0;";
+    }
     window.location.href = "/admin/login";
   };
 
@@ -1148,8 +1160,26 @@ export default function AdminDashboard() {
 
     // 2. Merge with real requests
     requests.forEach((r) => {
-      const key = r.mobile || r.customer_user_id || r.full_name;
-      if (!map.has(key)) {
+      const cleanMobile = r.mobile ? r.mobile.replace(/\D/g, "") : "";
+      let foundKey: string | null = null;
+      for (const [k, v] of map.entries()) {
+        const vCleanMobile = v.mobile ? v.mobile.replace(/\D/g, "") : "";
+        if (
+          v.id === r.customer_user_id ||
+          (cleanMobile && vCleanMobile && (vCleanMobile.endsWith(cleanMobile) || cleanMobile.endsWith(vCleanMobile)))
+        ) {
+          foundKey = k;
+          break;
+        }
+      }
+
+      if (foundKey) {
+        const item = map.get(foundKey);
+        item.totalRequests += 1;
+        item.latestStatus = r.status || item.latestStatus;
+        if (!item.latestRequest) item.latestRequest = r;
+      } else {
+        const key = r.mobile || r.customer_user_id || r.full_name;
         map.set(key, {
           id: r.customer_user_id || r.id,
           name: r.full_name,
@@ -1161,11 +1191,6 @@ export default function AdminDashboard() {
           latestRequest: r,
           created_at: r.created_at,
         });
-      } else {
-        const item = map.get(key);
-        item.totalRequests += 1;
-        item.latestStatus = r.status || item.latestStatus;
-        if (!item.latestRequest) item.latestRequest = r;
       }
     });
     return Array.from(map.values());
@@ -1320,11 +1345,10 @@ export default function AdminDashboard() {
             <NavItem
               icon={Users}
               label="Customers Directory"
-              badge={uniqueCustomers.length > 0 ? String(uniqueCustomers.length) : undefined}
+              badge={customerProfiles.length > 0 ? String(customerProfiles.length) : undefined}
               active={activeTab === "customers"}
               onClick={() => {
-                setActiveTab("customers");
-                setSidebarOpen(false);
+                window.location.href = "/admin/customers";
               }}
             />
 
@@ -2181,13 +2205,23 @@ export default function AdminDashboard() {
             ========================================================= */}
             {activeTab === "customers" && (
               <div className="space-y-4">
-                <div className="bg-white p-5 rounded-2xl border border-[#ded9cf] shadow-sm">
-                  <h2 className="font-serif text-2xl font-bold text-[#17221b]">
-                    Customer Directory
-                  </h2>
-                  <p className="text-xs text-black/55">
-                    Search and manage your verified client contact profiles across Bihar & Uttar Pradesh.
-                  </p>
+                <div className="bg-white p-5 rounded-2xl border border-[#ded9cf] shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <h2 className="font-serif text-2xl font-bold text-[#17221b]">
+                      Customer Directory ({customerProfiles.length})
+                    </h2>
+                    <p className="text-xs text-black/55">
+                      All {customerProfiles.length} verified customer profiles registered in Supabase.
+                    </p>
+                  </div>
+                  <Link
+                    href="/admin/customers"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-[#063b2c] px-4 py-2.5 text-xs font-bold text-[#f4cf72] transition hover:bg-[#094d3a] shadow-sm shrink-0"
+                  >
+                    <Users size={15} />
+                    <span>Open /admin/customers Directory</span>
+                    <ExternalLink size={13} />
+                  </Link>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -2224,7 +2258,7 @@ export default function AdminDashboard() {
                           </p>
                         </div>
 
-                        <div className="flex items-center gap-2 pt-2 border-t border-[#f0ebdf]">
+                        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#f0ebdf]">
                           <a
                             href={`https://wa.me/91${(cust.mobile || "").replace(/\D/g, "").slice(-10)}?text=${encodeURIComponent(
                               `Namaste ${cust.name} ji, Sarda Homeplan se sampark kar rahe hain.`
@@ -2245,15 +2279,12 @@ export default function AdminDashboard() {
                             <Phone size={15} />
                           </a>
 
-                          {cust.latestRequest && (
-                            <button
-                              type="button"
-                              onClick={() => openCustomerRequest(cust.latestRequest)}
-                              className="flex items-center justify-center rounded-xl border border-[#ded9cf] px-3 py-2 text-xs font-semibold text-black/70 hover:bg-[#faf8f4] transition"
-                            >
-                              Details
-                            </button>
-                          )}
+                          <Link
+                            href={`/admin/customers/${cust.id}`}
+                            className="flex items-center justify-center rounded-xl bg-[#063b2c] px-3 py-2 text-xs font-bold text-[#f4cf72] hover:bg-[#094d3a] transition"
+                          >
+                            View Profile
+                          </Link>
                         </div>
                       </div>
                     ))

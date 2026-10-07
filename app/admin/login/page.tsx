@@ -57,11 +57,21 @@ export default function AdminLoginPage() {
         }
       }
 
-      if (!error && authData.user) {
+      const persistAdminSession = (emailVal: string, nameVal = "Admin", roleVal = "Super Admin") => {
         if (typeof window !== "undefined") {
           localStorage.setItem("sarada_admin_logged_in", "true");
-          localStorage.setItem("sarada_admin_email", authEmail);
+          localStorage.setItem("sarda_admin_logged_in", "true");
+          localStorage.setItem("sarada_admin_email", emailVal);
+          localStorage.setItem("sarada_admin_name", nameVal);
+          localStorage.setItem("sarada_admin_role", roleVal);
+
+          document.cookie = "sarada_admin_logged_in=true; path=/; max-age=86400; SameSite=Lax";
+          document.cookie = "sarda_admin_logged_in=true; path=/; max-age=86400; SameSite=Lax";
         }
+      };
+
+      if (!error && authData.user) {
+        persistAdminSession(authEmail);
         setIsLoading(false);
         window.location.href = "/admin";
         return;
@@ -79,12 +89,7 @@ export default function AdminLoginPage() {
         const { data: adminRecord } = await adminQuery.maybeSingle();
 
         if (adminRecord && adminRecord.password === password) {
-          if (typeof window !== "undefined") {
-            localStorage.setItem("sarada_admin_logged_in", "true");
-            localStorage.setItem("sarada_admin_email", adminRecord.email);
-            localStorage.setItem("sarada_admin_name", adminRecord.full_name || "Admin");
-            localStorage.setItem("sarada_admin_role", adminRecord.role || "Super Admin");
-          }
+          persistAdminSession(adminRecord.email, adminRecord.full_name || "Admin", adminRecord.role || "Super Admin");
           setIsLoading(false);
           window.location.href = "/admin";
           return;
@@ -104,10 +109,7 @@ export default function AdminLoginPage() {
         password === "admin123" || password === "sarda123" || password === "sarada123" || password.length >= 6;
 
       if ((isMasterAdminEmail || (loginMethod === "mobile" && isMasterAdminMobile)) && isMasterPassword) {
-        if (typeof window !== "undefined") {
-          localStorage.setItem("sarada_admin_logged_in", "true");
-          localStorage.setItem("sarada_admin_email", inputVal);
-        }
+        persistAdminSession(inputVal);
         setIsLoading(false);
         window.location.href = "/admin";
         return;
@@ -123,6 +125,9 @@ export default function AdminLoginPage() {
       if (password.length >= 6) {
         if (typeof window !== "undefined") {
           localStorage.setItem("sarada_admin_logged_in", "true");
+          localStorage.setItem("sarda_admin_logged_in", "true");
+          document.cookie = "sarada_admin_logged_in=true; path=/; max-age=86400; SameSite=Lax";
+          document.cookie = "sarda_admin_logged_in=true; path=/; max-age=86400; SameSite=Lax";
         }
         window.location.href = "/admin";
         return;
