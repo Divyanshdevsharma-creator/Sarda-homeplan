@@ -363,7 +363,7 @@ export default function CustomerDashboardPage() {
 
   useEffect(() => {
     if (typeof window !== "undefined" && userId) {
-      const stored = localStorage.getItem(`sarada_read_notifs_${userId}`);
+      const stored = localStorage.getItem(`sarda_read_notifs_${userId}`) || localStorage.getItem(`sarada_read_notifs_${userId}`);
       if (stored) {
         try {
           setReadNotifIds(JSON.parse(stored));
@@ -378,6 +378,7 @@ export default function CustomerDashboardPage() {
     setServerNotifications((prev) => prev.map((sn) => ({ ...sn, is_read: true })));
     if (userId) {
       if (typeof window !== "undefined") {
+        localStorage.setItem(`sarda_read_notifs_${userId}`, JSON.stringify(allIds));
         localStorage.setItem(`sarada_read_notifs_${userId}`, JSON.stringify(allIds));
       }
       try {
@@ -396,6 +397,7 @@ export default function CustomerDashboardPage() {
     );
     if (typeof window !== "undefined" && userId) {
       const updated = Array.from(new Set([...readNotifIds, notifId]));
+      localStorage.setItem(`sarda_read_notifs_${userId}`, JSON.stringify(updated));
       localStorage.setItem(`sarada_read_notifs_${userId}`, JSON.stringify(updated));
     }
     if (userId && !isNaN(Number(notifId))) {
@@ -619,7 +621,7 @@ export default function CustomerDashboardPage() {
   const loadCustomer = async (authUser?: any) => {
     let localSession: any = null;
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("sarada_customer_session");
+      const stored = localStorage.getItem("sarda_customer_session") || localStorage.getItem("sarada_customer_session");
       if (stored) {
         try {
           localSession = JSON.parse(stored);
@@ -909,7 +911,7 @@ export default function CustomerDashboardPage() {
       let checkMobile = customerMobile;
 
       if (!checkUserId && typeof window !== "undefined") {
-        const stored = localStorage.getItem("sarada_customer_session");
+        const stored = localStorage.getItem("sarda_customer_session") || localStorage.getItem("sarada_customer_session");
         if (stored) {
           try {
             const parsed = JSON.parse(stored);
@@ -982,7 +984,7 @@ export default function CustomerDashboardPage() {
 
       // Check localStorage mobile session fallback if exists
       if (typeof window !== "undefined") {
-        const stored = localStorage.getItem("sarada_customer_session");
+        const stored = localStorage.getItem("sarda_customer_session") || localStorage.getItem("sarada_customer_session");
         if (stored) {
           try {
             const parsed = JSON.parse(stored);
@@ -1455,6 +1457,13 @@ export default function CustomerDashboardPage() {
       await supabase.auth.signOut();
     } catch (_) {}
     if (typeof window !== "undefined") {
+      localStorage.removeItem("sarda_customer_session");
+      localStorage.removeItem("sarda_customer_logged_in");
+      localStorage.removeItem("sarda_admin_last_uploaded_rough_draft");
+      localStorage.removeItem("sarda_admin_last_uploaded_final_blueprint");
+      localStorage.removeItem("sarda_admin_last_uploaded_mistri_sheet");
+      localStorage.removeItem("sarda_last_uploaded_sketch");
+      localStorage.removeItem("sarda_last_uploaded_sketch_name");
       localStorage.removeItem("sarada_customer_session");
       localStorage.removeItem("sarada_customer_logged_in");
       localStorage.removeItem("sarada_admin_last_uploaded_rough_draft");
@@ -1496,7 +1505,7 @@ export default function CustomerDashboardPage() {
           <Home size={30} />
         </div>
         <h2 className="font-serif text-2xl font-bold text-[#17221b]">
-          Sarada Homeplan
+          Sarda Homeplan
         </h2>
         <p className="mt-1.5 text-xs font-semibold tracking-wide text-black/55">
           Loading your verified client dashboard...
@@ -1535,7 +1544,7 @@ export default function CustomerDashboardPage() {
 
               <div>
                 <div className="font-serif text-[25px] font-bold leading-none tracking-wide">
-                  SARADA
+                  SARDA
                 </div>
                 <div className="mt-1 text-[9px] font-bold tracking-[0.28em] text-[#f4cf72]">
                   HOMEPLAN
@@ -1800,7 +1809,7 @@ export default function CustomerDashboardPage() {
 
                 <div className="relative z-10 flex h-full flex-col justify-center p-6 sm:p-10">
                   <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#9b7732]">
-                    SARADA HOMEPLAN • CLIENT PORTAL
+                    SARDA HOMEPLAN • CLIENT PORTAL
                   </p>
 
                   <h1 className="mt-2 font-serif text-3xl font-bold text-[#10261d] sm:text-4xl">
@@ -2294,7 +2303,7 @@ export default function CustomerDashboardPage() {
                   </div>
 
                   <div className="mt-4 rounded-xl bg-white/70 p-2.5 text-center text-[10px] text-black/50">
-                    Sarada Homeplan • Local House Planning & Consultation
+                    Sarda Homeplan • Local House Planning & Consultation
                   </div>
                 </div>
               </section>
@@ -2644,7 +2653,7 @@ export default function CustomerDashboardPage() {
 
                             <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
                               <p className="text-[11px] text-[#8a641d]">
-                                Sarada Homeplan architect team has received your requested slot and will confirm shortly.
+                                Sarda Homeplan architect team has received your requested slot and will confirm shortly.
                               </p>
 
                               <button
@@ -3330,7 +3339,7 @@ export default function CustomerDashboardPage() {
                     <div className="flex items-center gap-2">
                       <a
                         href={`https://wa.me/919999999999?text=${encodeURIComponent(
-                          `Namaste Sarada Homeplan team, I want to discuss a revision for my house plan (Request #${customerRequest?.id || ""}).`
+                          `Namaste Sarda Homeplan team, I want to discuss a revision for my house plan (Request #${customerRequest?.id || ""}).`
                         )}`}
                         target="_blank"
                         rel="noreferrer"
@@ -3365,7 +3374,7 @@ export default function CustomerDashboardPage() {
                         Browse Design Inspirations & Sample Reference Layouts
                       </h4>
                       <p className="text-xs text-black/55">
-                        Ye Sarada Homeplan ke past completed portfolio projects hain (sirf aapke reference ke liye).
+                        Ye Sarda Homeplan ke past completed portfolio projects hain (sirf aapke reference ke liye).
                       </p>
                     </div>
                     <div className="flex items-center gap-2 text-xs font-bold text-[#063b2c]">
@@ -3545,7 +3554,7 @@ export default function CustomerDashboardPage() {
                             <span>
                               Recorded: {p.created_at ? new Date(p.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "Recent"}
                             </span>
-                            <span className="font-semibold text-[#0c7a62]">Official Sarada Receipt</span>
+                            <span className="font-semibold text-[#0c7a62]">Official Sarda Receipt</span>
                           </div>
                         </div>
                       ))}
@@ -3668,7 +3677,7 @@ export default function CustomerDashboardPage() {
                       Notifications & Project Alerts
                     </h2>
                     <p className="text-xs text-black/55">
-                      Direct alerts and updates from Sarada Homeplan regarding your plot, site visit, and architectural drawings.
+                      Direct alerts and updates from Sarda Homeplan regarding your plot, site visit, and architectural drawings.
                     </p>
                   </div>
                   {customerNotifications.length > 0 && (
@@ -4243,7 +4252,7 @@ export default function CustomerDashboardPage() {
             <div className="flex items-start justify-between border-b border-[#ebd28b] pb-4">
               <div>
                 <span className="rounded-full bg-[#063b2c] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[#f4cf72]">
-                  Sarada Homeplan · On-Site Mason Guide
+                  Sarda Homeplan · On-Site Mason Guide
                 </span>
                 <h3 className="mt-2 font-serif text-2xl font-bold text-[#17221b]">
                   Thekedar / Mistri Execution Sheet
@@ -4441,13 +4450,13 @@ export default function CustomerDashboardPage() {
             {/* MODAL FOOTER */}
             <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-[#f0ebdf] pt-4">
               <span className="text-[11px] text-black/50">
-                Sarada Homeplan Standard On-Site Contractor Specification Sheet
+                Sarda Homeplan Standard On-Site Contractor Specification Sheet
               </span>
 
               <div className="flex items-center gap-2">
                 <a
                   href={`https://wa.me/?text=${encodeURIComponent(
-                    `Namaste, yahan Sarada Homeplan ka Thekedar/Mistri execution sheet hai: Plot ${customerRequest?.plot_length || 30}x${customerRequest?.plot_width || 40} ft, Floors: ${customerRequest?.floors || "1 Floor"}. 9 inch outer wall aur 4.5 inch inner wall standard.`
+                    `Namaste, yahan Sarda Homeplan ka Thekedar/Mistri execution sheet hai: Plot ${customerRequest?.plot_length || 30}x${customerRequest?.plot_width || 40} ft, Floors: ${customerRequest?.floors || "1 Floor"}. 9 inch outer wall aur 4.5 inch inner wall standard.`
                   )}`}
                   target="_blank"
                   rel="noreferrer"
@@ -4504,7 +4513,7 @@ export default function CustomerDashboardPage() {
                 </div>
                 <div className="text-left">
                   <p className="font-serif text-[11px] font-bold tracking-wider text-white">
-                    SARADA HOMEPLAN
+                    SARDA HOMEPLAN
                   </p>
                   <p className="text-[9px] font-medium tracking-wide text-[#f4cf72]">
                     Certified Architectural Drawing

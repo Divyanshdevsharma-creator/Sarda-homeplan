@@ -121,11 +121,12 @@ export default function CustomerForgotPasswordPage() {
 
       // Update in local cached session if present
       if (typeof window !== "undefined") {
-        const stored = localStorage.getItem("sarada_customer_session");
+        const stored = localStorage.getItem("sarda_customer_session") || localStorage.getItem("sarada_customer_session");
         if (stored) {
           try {
             const parsed = JSON.parse(stored);
             parsed.updated_password = true;
+            localStorage.setItem("sarda_customer_session", JSON.stringify(parsed));
             localStorage.setItem("sarada_customer_session", JSON.stringify(parsed));
           } catch (_) {}
         }
@@ -151,7 +152,7 @@ export default function CustomerForgotPasswordPage() {
           </div>
           <div>
             <div className="font-serif text-xl font-bold tracking-wider text-[#063b2c]">
-              SARADA
+              SARDA
             </div>
             <div className="text-[8px] font-bold tracking-[0.3em] text-[#9b7732]">
               HOMEPLAN
@@ -316,7 +317,7 @@ export default function CustomerForgotPasswordPage() {
               {resetMethod === "mobile" && (
                 <div className="mt-3 pt-2 border-t border-emerald-200 flex items-center justify-center">
                   <a
-                    href={`https://wa.me/91${cleanMobile}?text=${encodeURIComponent(`Namaste! Sarada Homeplan password reset OTP code hai: ${generatedOtp}`)}`}
+                    href={`https://wa.me/91${cleanMobile}?text=${encodeURIComponent(`Namaste! Sarda Homeplan password reset OTP code hai: ${generatedOtp}`)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 rounded-full bg-[#25D366] px-4 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-[#1ebc59]"
@@ -391,7 +392,7 @@ export default function CustomerForgotPasswordPage() {
                 Set New Password
               </h2>
               <p className="mt-1 text-xs text-black/55">
-                Choose a strong password for your Sarada Homeplan account.
+                Choose a strong password for your Sarda Homeplan account.
               </p>
             </div>
 
@@ -485,7 +486,7 @@ export default function CustomerForgotPasswordPage() {
 
       {/* FOOTER */}
       <footer className="text-center text-[11px] text-black/40">
-        © {new Date().getFullYear()} Sarada Homeplan. Secure Identity Verification System.
+        © {new Date().getFullYear()} Sarda Homeplan. Secure Identity Verification System.
       </footer>
     </main>
   );

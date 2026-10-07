@@ -83,6 +83,10 @@ export default function CustomerSignupPage() {
     try {
       await supabase.auth.signOut();
       if (typeof window !== "undefined") {
+        localStorage.removeItem("sarda_customer_session");
+        localStorage.removeItem("sarda_customer_logged_in");
+        localStorage.removeItem("sarda_last_uploaded_sketch");
+        localStorage.removeItem("sarda_last_uploaded_sketch_name");
         localStorage.removeItem("sarada_customer_session");
         localStorage.removeItem("sarada_customer_logged_in");
         localStorage.removeItem("sarada_last_uploaded_sketch");
@@ -90,7 +94,7 @@ export default function CustomerSignupPage() {
       }
     } catch (_) {}
 
-    const cleanEmail = email.trim() ? email.trim().toLowerCase() : `${cleanMobile}@saradahomeplan.com`;
+    const cleanEmail = email.trim() ? email.trim().toLowerCase() : `${cleanMobile}@sardahomeplan.com`;
 
     try {
       const { data: signupData, error: signupError } = await supabase.auth.signUp({
@@ -180,7 +184,7 @@ export default function CustomerSignupPage() {
 
           <div className="leading-none">
             <div className="font-serif text-[24px] font-bold tracking-wide text-[#123f31]">
-              SARADA
+              SARDA
             </div>
 
             <div className="mt-1 text-[8px] font-bold tracking-[0.35em] text-[#a97920]">
@@ -223,7 +227,7 @@ export default function CustomerSignupPage() {
               </h1>
 
               <p className="mt-1.5 text-[12px] text-black/55">
-                Start your house planning journey with Sarada HomePlan.
+                Start your house planning journey with Sarda HomePlan.
               </p>
             </div>
 
@@ -657,7 +661,7 @@ export default function CustomerSignupPage() {
               {/* BRAND CARD */}
               <div className="absolute bottom-5 right-5 w-[235px] rounded-[22px] border border-white/20 bg-[#073b2b]/90 px-5 py-4 shadow-xl backdrop-blur-sm xl:right-6">
                 <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-[#e1b74f]">
-                  Sarada HomePlan
+                  Sarda HomePlan
                 </p>
 
                 <h3 className="mt-1.5 font-serif text-[23px] font-bold leading-[1.03] text-white">

@@ -38,12 +38,24 @@ export default function AdminLoginPage() {
       const authEmail =
         loginMethod === "email"
           ? inputVal.toLowerCase()
-          : `${cleanMobile}@saradahomeplan.com`;
+          : `${cleanMobile}@sardahomeplan.com`;
 
-      const { data: authData, error } = await supabase.auth.signInWithPassword({
+      let { data: authData, error } = await supabase.auth.signInWithPassword({
         email: authEmail,
         password,
       });
+
+      // Also check fallback previous domain if not found
+      if (error && loginMethod === "mobile") {
+        const fallbackRes = await supabase.auth.signInWithPassword({
+          email: `${cleanMobile}@saradahomeplan.com`,
+          password,
+        });
+        if (!fallbackRes.error && fallbackRes.data.user) {
+          authData = fallbackRes.data;
+          error = null;
+        }
+      }
 
       if (!error && authData.user) {
         if (typeof window !== "undefined") {
@@ -83,12 +95,13 @@ export default function AdminLoginPage() {
 
       // 3. Fallback: Master Admin Credentials Check
       const isMasterAdminEmail =
+        inputVal.toLowerCase() === "admin@sardahomeplan.com" ||
         inputVal.toLowerCase() === "admin@saradahomeplan.com" ||
         inputVal.toLowerCase() === "admin";
       const isMasterAdminMobile =
         cleanMobile === "9876543210" || cleanMobile.length >= 10;
       const isMasterPassword =
-        password === "admin123" || password === "sarada123" || password.length >= 6;
+        password === "admin123" || password === "sarda123" || password === "sarada123" || password.length >= 6;
 
       if ((isMasterAdminEmail || (loginMethod === "mobile" && isMasterAdminMobile)) && isMasterPassword) {
         if (typeof window !== "undefined") {
@@ -204,7 +217,7 @@ export default function AdminLoginPage() {
                 <div>
 
                   <p className="text-[14px] font-semibold tracking-[0.22em]">
-                    SARADA
+                    SARDA
                   </p>
 
                   <p className="text-[9px] tracking-[0.30em] text-[#68766c]">

@@ -152,7 +152,7 @@ export default function Home() {
           {/* Logo */}
           <div>
             <h1 className="text-xl font-bold tracking-tight">
-              Sarada <span className="font-normal">HomePlan</span>
+              Sarda <span className="font-normal">HomePlan</span>
             </h1>
             <p className="text-[10px] uppercase tracking-[0.25em] text-black/50">
               House Planning & Vastu Consultation

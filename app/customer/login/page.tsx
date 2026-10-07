@@ -171,11 +171,13 @@ export default function CustomerLoginPage() {
           id: existingId,
           full_name: customerName,
           mobile: cleanMobile,
-          email: `${cleanMobile}@saradahomeplan.com`,
+          email: `${cleanMobile}@sardahomeplan.com`,
           village_city: userCity,
           district: userDistrict,
           logged_in_at: new Date().toISOString(),
         };
+        localStorage.setItem("sarda_customer_session", JSON.stringify(sessionPayload));
+        localStorage.setItem("sarda_customer_logged_in", "true");
         localStorage.setItem("sarada_customer_session", JSON.stringify(sessionPayload));
         localStorage.setItem("sarada_customer_logged_in", "true");
       }
@@ -200,13 +202,25 @@ export default function CustomerLoginPage() {
       const supabase = createClient();
 
       // Try login with phone alias
-      const phoneEmail = `${cleanMobile}@saradahomeplan.com`;
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      const phoneEmail = `${cleanMobile}@sardahomeplan.com`;
+      let { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: phoneEmail,
         password,
       });
 
-      if (!authError && authData.user) {
+      // Fallback for accounts created with previous domain
+      if (authError) {
+        const fallbackRes = await supabase.auth.signInWithPassword({
+          email: `${cleanMobile}@saradahomeplan.com`,
+          password,
+        });
+        if (!fallbackRes.error && fallbackRes.data.user) {
+          authData = fallbackRes.data;
+          authError = null;
+        }
+      }
+
+      if (!authError && authData?.user) {
         if (typeof window !== "undefined") {
           const sessionPayload = {
             id: authData.user.id,
@@ -215,6 +229,8 @@ export default function CustomerLoginPage() {
             email: phoneEmail,
             logged_in_at: new Date().toISOString(),
           };
+          localStorage.setItem("sarda_customer_session", JSON.stringify(sessionPayload));
+          localStorage.setItem("sarda_customer_logged_in", "true");
           localStorage.setItem("sarada_customer_session", JSON.stringify(sessionPayload));
           localStorage.setItem("sarada_customer_logged_in", "true");
         }
@@ -461,7 +477,7 @@ export default function CustomerLoginPage() {
 
                 <div>
                   <h1 className="font-serif text-[24px] font-semibold tracking-[0.08em] leading-none text-[#063b2c] sm:text-[27px]">
-                    SARADA
+                    SARDA
                   </h1>
 
                   <p className="mt-0.5 text-[9px] tracking-[0.32em] text-[#063b2c]">
@@ -673,7 +689,7 @@ export default function CustomerLoginPage() {
                         <div className="mt-2 pt-2 border-t border-emerald-200/60 flex items-center justify-between">
                           <span className="text-[10px] text-emerald-800">Direct WhatsApp par dekhein:</span>
                           <a
-                            href={`https://wa.me/91${mobile.trim().replace(/\D/g, "")}?text=${encodeURIComponent(`Namaste! Sarada Homeplan me aapka login verification OTP code hai: ${generatedOtp}`)}`}
+                            href={`https://wa.me/91${mobile.trim().replace(/\D/g, "")}?text=${encodeURIComponent(`Namaste! Sarda Homeplan me aapka login verification OTP code hai: ${generatedOtp}`)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 rounded bg-[#25D366] px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-[#1ebc59]"

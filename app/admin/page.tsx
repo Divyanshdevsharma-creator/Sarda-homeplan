@@ -511,7 +511,7 @@ export default function AdminDashboard() {
       title: `Project Status: ${newStatus}`,
       message: `Aapke house-planning project ka status update hokar '${newStatus}' ho gaya hai.`,
       actionTab: "project",
-      whatsappMessage: `Namaste ${selectedRequest.full_name} ji! Sarada Homeplan me aapke plot project ka status update hokar '${newStatus}' ho gaya hai. Kripya customer dashboard me progress check karein: https://saradahomeplan.com/customer/dashboard`,
+      whatsappMessage: `Namaste ${selectedRequest.full_name} ji! Sarda Homeplan me aapke plot project ka status update hokar '${newStatus}' ho gaya hai. Kripya customer dashboard me progress check karein: https://sardahomeplan.com/customer/dashboard`,
     });
   };
 
@@ -629,7 +629,7 @@ export default function AdminDashboard() {
       title: `Site Visit Proposed: ${visitDate} at ${visitTime}`,
       message: `Architect ne ${visitDate} ko ${visitTime} baje site visit propose kiya hai.`,
       actionTab: "visit",
-      whatsappMessage: `Namaste ${selectedRequest.full_name} ji! Sarada Homeplan se humne aapka Site Visit ${visitDate} ko ${visitTime} baje schedule kiya hai. Kripya apne customer dashboard me review karke confirm karein ya naya samay batayein: https://saradahomeplan.com/customer/dashboard`,
+      whatsappMessage: `Namaste ${selectedRequest.full_name} ji! Sarda Homeplan se humne aapka Site Visit ${visitDate} ko ${visitTime} baje schedule kiya hai. Kripya apne customer dashboard me review karke confirm karein ya naya samay batayein: https://sardahomeplan.com/customer/dashboard`,
     });
   };
 
@@ -715,7 +715,7 @@ export default function AdminDashboard() {
         title: `Site Visit Confirmed: ${date} at ${time}`,
         message: `Aapka site visit ${date} ko ${time} baje ke liye CONFIRM kar diya gaya hai.`,
         actionTab: "visit",
-        whatsappMessage: `Namaste ${targetReqForAlert?.full_name} ji! Sarada Homeplan se aapka Site Visit ${date} ko ${time} baje CONFIRM kar diya gaya hai. Hamari team diye gaye samay par aapke plot par pahunch jayegi. Kripya zaroori documents taiyar rakhein.`,
+        whatsappMessage: `Namaste ${targetReqForAlert?.full_name} ji! Sarda Homeplan se aapka Site Visit ${date} ko ${time} baje CONFIRM kar diya gaya hai. Hamari team diye gaye samay par aapke plot par pahunch jayegi. Kripya zaroori documents taiyar rakhein.`,
       });
     } else {
       await triggerCustomerAlert({
@@ -723,7 +723,7 @@ export default function AdminDashboard() {
         title: `New Site Visit Slot Proposed: ${date} at ${time}`,
         message: `Architect ne aapke reschedule request par naya samay propose kiya: ${date} at ${time}.`,
         actionTab: "visit",
-        whatsappMessage: `Namaste ${targetReqForAlert?.full_name} ji! Sarada Homeplan se humne aapke reschedule request par naya slot ${date} ko ${time} baje propose kiya hai. Kripya apne dashboard me review karein: https://saradahomeplan.com/customer/dashboard`,
+        whatsappMessage: `Namaste ${targetReqForAlert?.full_name} ji! Sarda Homeplan se humne aapke reschedule request par naya slot ${date} ko ${time} baje propose kiya hai. Kripya apne dashboard me review karein: https://sardahomeplan.com/customer/dashboard`,
       });
     }
   };
@@ -886,7 +886,7 @@ export default function AdminDashboard() {
       title: `${deliverableTypeName} Uploaded`,
       message: `${title} architect dwara upload ho gaya hai. Abhi check karein!`,
       actionTab: "plans",
-      whatsappMessage: `Namaste ${targetReq?.full_name} ji! Sarada Homeplan ke architect ne aapke plot ka ${deliverableTypeName} (${title}) upload kar diya hai. Kripya customer dashboard me login karke review karein: https://saradahomeplan.com/customer/dashboard`,
+      whatsappMessage: `Namaste ${targetReq?.full_name} ji! Sarda Homeplan ke architect ne aapke plot ka ${deliverableTypeName} (${title}) upload kar diya hai. Kripya customer dashboard me login karke review karein: https://sardahomeplan.com/customer/dashboard`,
     });
   };
 
@@ -930,7 +930,7 @@ export default function AdminDashboard() {
       title: `Advance Payment: ${paymentStatusSelect}`,
       message: `₹${paymentAmount} ka payment (${paymentMode}) record aur verify kar liya gaya hai.`,
       actionTab: "payments",
-      whatsappMessage: `Namaste ${paymentTargetRequest.full_name} ji! Sarada Homeplan me aapka advance payment (₹${paymentAmount}) verify aur record ho gaya hai. Aapke plot ka drafting work tezi se prarambh ho chuka hai. Dhanyawad!`,
+      whatsappMessage: `Namaste ${paymentTargetRequest.full_name} ji! Sarda Homeplan me aapka advance payment (₹${paymentAmount}) verify aur record ho gaya hai. Aapke plot ka drafting work tezi se prarambh ho chuka hai. Dhanyawad!`,
     });
   };
 
@@ -1065,7 +1065,7 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <p className="font-serif text-[22px] font-bold tracking-wide text-white">
-                  SARADA
+                  SARDA
                 </p>
                 <p className="text-[10px] font-semibold tracking-[0.28em] text-[#d7b56d]">
                   HOMEPLAN ADMIN
@@ -1188,7 +1188,7 @@ export default function AdminDashboard() {
             <div className="rounded-xl bg-[#0e4836] p-3 text-xs border border-white/10">
               <p className="font-semibold text-[#f5d58f] flex items-center gap-1.5">
                 <Compass size={14} />
-                <span>Sarada Operations</span>
+                <span>Sarda Operations</span>
               </p>
               <p className="mt-1 text-[11px] text-white/70 leading-relaxed">
                 Owner-controlled site visits & verified blueprint delivery.
@@ -1685,7 +1685,7 @@ export default function AdminDashboard() {
                                   </a>
                                   <a
                                     href={`https://wa.me/91${(req.mobile || "").replace(/\D/g, "").slice(-10)}?text=${encodeURIComponent(
-                                      `Namaste ${req.full_name} ji, Sarada Homeplan se aapka plot naksha request receive hua hai.`
+                                      `Namaste ${req.full_name} ji, Sarda Homeplan se aapka plot naksha request receive hua hai.`
                                     )}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
@@ -2005,7 +2005,7 @@ export default function AdminDashboard() {
                         <div className="flex items-center gap-2 pt-2 border-t border-[#f0ebdf]">
                           <a
                             href={`https://wa.me/91${(cust.mobile || "").replace(/\D/g, "").slice(-10)}?text=${encodeURIComponent(
-                              `Namaste ${cust.name} ji, Sarada Homeplan se sampark kar rahe hain.`
+                              `Namaste ${cust.name} ji, Sarda Homeplan se sampark kar rahe hain.`
                             )}`}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -2621,7 +2621,7 @@ export default function AdminDashboard() {
                     Public Portfolio Showcase
                   </h2>
                   <p className="text-xs text-black/55 leading-relaxed">
-                    Per Sarada Homeplan policy, private client blueprints are protected and never shown publicly without consent.
+                    Per Sarda Homeplan policy, private client blueprints are protected and never shown publicly without consent.
                     Below are the approved sample floor plans displayed on the website homepage for potential clients.
                   </p>
                 </div>
@@ -2730,7 +2730,7 @@ export default function AdminDashboard() {
                     Consultancy & Office Configuration
                   </h2>
                   <p className="text-xs text-black/55">
-                    Operational details for Sarada Homeplan house planning consultancy.
+                    Operational details for Sarda Homeplan house planning consultancy.
                   </p>
                 </div>
 
@@ -2741,7 +2741,7 @@ export default function AdminDashboard() {
                       <div>
                         <label className="block text-black/50 uppercase font-bold text-[10px]">Business Name</label>
                         <input
-                          value="Sarada Homeplan Consultancy"
+                          value="Sarda Homeplan Consultancy"
                           readOnly
                           className="w-full mt-1 p-2.5 rounded-xl border border-[#ded9cf] bg-[#faf8f4] font-semibold"
                         />

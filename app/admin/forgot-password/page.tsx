@@ -116,7 +116,7 @@ export default function AdminForgotPasswordPage() {
           </div>
           <div>
             <div className="text-xs font-semibold tracking-widest text-[#173525]">
-              SARADA ADMIN
+              SARDA ADMIN
             </div>
             <div className="text-[9px] tracking-wider text-[#68766c]">
               SECURITY WORKSPACE
@@ -186,7 +186,7 @@ export default function AdminForgotPasswordPage() {
                     onChange={(e) => setIdentifier(e.target.value)}
                     placeholder={
                       resetMethod === "email"
-                        ? "e.g. admin@saradahomeplan.com"
+                        ? "e.g. admin@sardahomeplan.com"
                         : "e.g. 9876543210"
                     }
                     className="h-12 w-full rounded-xl border border-black/10 bg-[#faf9f5] pl-11 pr-4 text-sm outline-none transition focus:border-[#173525] focus:bg-white"
@@ -357,7 +357,7 @@ export default function AdminForgotPasswordPage() {
       </div>
 
       <footer className="text-center text-[10px] text-black/40">
-        © {new Date().getFullYear()} Sarada Homeplan. Confidential Administration Portal.
+        © {new Date().getFullYear()} Sarda Homeplan. Confidential Administration Portal.
       </footer>
     </main>
   );

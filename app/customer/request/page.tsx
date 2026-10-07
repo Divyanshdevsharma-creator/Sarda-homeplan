@@ -491,7 +491,7 @@ export default function CustomerRequestPage() {
 
             <div>
               <p className="font-serif text-[25px] font-bold tracking-wide">
-                SARADA
+                SARDA
               </p>
 
               <p className="-mt-1 text-[11px] font-semibold tracking-[0.25em] text-[#f4ca64]">
@@ -700,7 +700,7 @@ export default function CustomerRequestPage() {
             <div className="relative z-10 max-w-[650px]">
 
               <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#9b7732]">
-                Sarada HomePlan
+                Sarda HomePlan
               </p>
 
               <h1 className="mt-1 font-serif text-4xl font-bold text-[#063b2c]">
@@ -1392,7 +1392,7 @@ export default function CustomerRequestPage() {
               <div className="rounded-3xl border border-[#e5ddd0] bg-white p-6">
 
                 <h2 className="font-serif text-xl font-bold text-[#17221b]">
-                  Why Choose Sarada HomePlan?
+                  Why Choose Sarda HomePlan?
                 </h2>
 
                 <div className="mt-5 space-y-5">

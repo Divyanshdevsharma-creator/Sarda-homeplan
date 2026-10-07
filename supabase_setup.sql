@@ -1,5 +1,5 @@
 -- ==============================================================================
--- SARADA HOMEPLAN — COMPLETE SUPABASE DATABASE SETUP & SCHEMA
+-- SARDA HOMEPLAN — COMPLETE SUPABASE DATABASE SETUP & SCHEMA
 -- Single Source of Truth for all application data
 -- Run this ENTIRE block in Supabase SQL Editor and click RUN.
 -- ==============================================================================
@@ -22,6 +22,7 @@ CREATE POLICY "Allow all for admins" ON public.admins FOR ALL USING (true) WITH 
 
 INSERT INTO public.admins (email, full_name, role, mobile, password)
 VALUES 
+  ('admin@sardahomeplan.com', 'Admin Office', 'Super Admin', '9876543210', 'admin123'),
   ('admin@saradahomeplan.com', 'Admin Office', 'Super Admin', '9876543210', 'admin123'),
   ('admin', 'Admin Office', 'Super Admin', '9876543210', 'admin123')
 ON CONFLICT (email) DO NOTHING;
