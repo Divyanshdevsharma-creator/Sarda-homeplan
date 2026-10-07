@@ -1472,7 +1472,7 @@ export default function CustomerDashboardPage() {
       localStorage.removeItem("sarada_last_uploaded_sketch");
       localStorage.removeItem("sarada_last_uploaded_sketch_name");
     }
-    window.location.href = "/customer/login";
+    window.location.href = "/";
   };
 
   // Determine stage flags
@@ -2283,7 +2283,7 @@ export default function CustomerDashboardPage() {
 
                     <div className="mt-4 space-y-2">
                       <a
-                        href="https://wa.me/919999999999"
+                        href="https://wa.me/918423406049"
                         target="_blank"
                         rel="noreferrer"
                         className="flex items-center justify-center gap-2 rounded-xl bg-[#0c7a62] py-2.5 text-xs font-bold text-white transition hover:bg-[#096650]"
@@ -2293,11 +2293,11 @@ export default function CustomerDashboardPage() {
                       </a>
 
                       <a
-                        href="tel:+919999999999"
+                        href="tel:+918423406049"
                         className="flex items-center justify-center gap-2 rounded-xl border border-[#9ca59e] bg-white py-2.5 text-xs font-bold text-[#173b2e] transition hover:bg-[#f5f0e4]"
                       >
                         <Phone size={16} />
-                        <span>Call Support</span>
+                        <span>Call Support (+91 8423406049)</span>
                       </a>
                     </div>
                   </div>
@@ -3338,7 +3338,7 @@ export default function CustomerDashboardPage() {
 
                     <div className="flex items-center gap-2">
                       <a
-                        href={`https://wa.me/919999999999?text=${encodeURIComponent(
+                        href={`https://wa.me/918423406049?text=${encodeURIComponent(
                           `Namaste Sarda Homeplan team, I want to discuss a revision for my house plan (Request #${customerRequest?.id || ""}).`
                         )}`}
                         target="_blank"

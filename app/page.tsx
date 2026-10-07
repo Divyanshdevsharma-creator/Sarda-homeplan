@@ -11,10 +11,8 @@ import {
   Mail,
   MapPin,
   MessageCircle,
-  Check,
   CheckCircle2,
   ArrowRight,
-  ArrowLeft,
   Mic,
   Star,
   Search,
@@ -22,15 +20,15 @@ import {
   Sparkles,
   Clock,
   ShieldCheck,
-  X,
   Maximize2,
   User,
   LogIn,
   Bell,
   Play,
   Menu,
-  Wrench,
-  Award,
+  X,
+  Layers,
+  HeartHandshake,
 } from "lucide-react";
 import { createClient } from "../lib/supabase-client";
 
@@ -144,7 +142,7 @@ const SERVICES_LIST: ServiceItem[] = [
     title: "Map Redrawing",
     tagline: "Convert your rough sketch to professional plan • Accurate measurements",
     highlights: ["Convert rough paper sketch to CAD", "Accurate millimeter measurements", "Wall thickness & column alignment"],
-    description: "Send us a photo of your hand-drawn sketch or diary note. Our architects translate it into professional CAD blueprints with standard dimensions.",
+    description: "Send us a photo of your hand-drawn sketch or diary note. We translate it into clean 2D plans with clear measurements.",
     badge: "Fast 24h",
   },
   {
@@ -160,7 +158,7 @@ const SERVICES_LIST: ServiceItem[] = [
     title: "Vastu Consultation",
     tagline: "Vastu based house planning • Guidance from experts",
     highlights: ["Vastu based room positioning", "Ishan, Agni, Vayu, Nairutya balance", "Remedy-free initial planning"],
-    description: "Ensure peace, health, and prosperity by aligning entrance doors, kitchen stove, master bed, water tank, and septic tank strictly per Vastu Shastra.",
+    description: "Ensure peace, health, and prosperity by aligning entrance doors, kitchen stove, master bed, water tank, and septic tank per Vastu Shastra.",
     badge: "Vastu Verified",
   },
   {
@@ -168,13 +166,13 @@ const SERVICES_LIST: ServiceItem[] = [
     title: "Site Visit Consultation",
     tagline: "On-site discussion (Pratapgarh & nearby) • Better planning & accuracy",
     highlights: ["On-site physical inspection", "Pratapgarh & neighbouring districts", "Road level & soil orientation review"],
-    description: "Our field team physically visits your plot to check front road width, boundary dispute clearances, surrounding buildings, and drainage slopes.",
+    description: "Our team visits your plot in Pratapgarh and nearby areas to check front road width, boundaries, and drainage slopes.",
     badge: "On-Site Visit",
   },
 ];
 
 // ============================================================================
-// DATA: 5-PHASE COMPLETE HOW IT WORKS PROCESS
+// DATA: 5-PHASE SIMPLE, HONEST & CUSTOMER-FIRST PROCESS
 // ============================================================================
 interface ProcessPhase {
   step: string;
@@ -185,10 +183,8 @@ interface ProcessPhase {
   summaryEn: string;
   summaryHinglish: string;
   timeline: string;
-  clientRoleHi: string;
-  clientRoleEn: string;
-  sardaRoleHi: string;
-  sardaRoleEn: string;
+  detailsHi: string[];
+  detailsEn: string[];
   deliverableHi: string;
   deliverableEn: string;
 }
@@ -196,83 +192,113 @@ interface ProcessPhase {
 const PROCESS_PHASES: ProcessPhase[] = [
   {
     step: "01",
-    titleHi: "ज़रूरतें व रफ स्केच सबमिशन",
-    titleEn: "Requirement Intake & Rough Sketch",
-    titleHinglish: "Tell Us Requirements & Rough Sketch",
-    summaryHi: "प्लॉट की लंबाई-चौड़ाई, कमरों की संख्या (2/3 BHK), और अपनी पसंद या हाथ से बना रफ स्केच शेयर करें।",
-    summaryEn: "Share your plot dimensions, family room needs, and rough paper sketch or voice note.",
-    summaryHinglish: "Apne plot ki lambai-chaudai, kamro ki sankhya, aur rough sketch share karein.",
-    timeline: "Day 1 (Instant)",
-    clientRoleHi: "प्लॉट साइज, बजट, कमरों की जरूरत और वॉयस नोट या डायरी का फोटो दें।",
-    clientRoleEn: "Provide plot size, budget, room requirements, and sketch or voice note.",
-    sardaRoleHi: "डिटेल्स की जांच, कस्टमर प्रोफाइल और डैशबोर्ड पर नया प्रोजेक्ट टिकट बनाना।",
-    sardaRoleEn: "Requirement audit, customer profile creation, and portal project ticket setup.",
-    deliverableHi: "कस्टमर पोर्टल पर एक्टिव प्रोजेक्ट टिकट",
-    deliverableEn: "Active Project Ticket on Customer Portal",
+    titleHi: "अपनी ज़रूरतें व रफ स्केच शेयर करें",
+    titleEn: "Share Requirements & Rough Sketch",
+    titleHinglish: "Share Plot Requirements & Rough Sketch",
+    summaryHi: "प्लॉट की लंबाई-चौड़ाई, कमरों की संख्या (2/3 BHK), और अपनी पसंद या हाथ से बना रफ स्केच हमें बताएं।",
+    summaryEn: "Share your plot measurements, number of bedrooms, and paper sketch or voice note.",
+    summaryHinglish: "Plot ka size, kamro ki sankhya, aur apna rough sketch ya voice note share karein.",
+    timeline: "Step 1 (शुरुआत)",
+    detailsHi: [
+      "प्लॉट की लंबाई और चौड़ाई बताएं (जैसे 30 x 40 Ft)",
+      "कमरों की ज़रूरत, पार्किंग, और पूजा घर की जानकारी दें",
+      "हाथ से बना कोई रफ स्केच या वॉयस नोट अपलोड करें",
+    ],
+    detailsEn: [
+      "Provide plot length and width (e.g. 30 x 40 Ft)",
+      "Specify number of rooms, car parking & puja room",
+      "Upload paper rough sketch or voice note directly",
+    ],
+    deliverableHi: "कस्टमर डैशबोर्ड पर आपकी रिक्वायरमेंट दर्ज हो जाती है",
+    deliverableEn: "Project Requirement logged in your Customer Dashboard",
   },
   {
     step: "02",
-    titleHi: "ऑन-साइट इंजीनियर विज़िट व लेजर नाप",
-    titleEn: "On-Site Engineer Visit & Land Survey",
-    titleHinglish: "Physical Site Visit & Laser Measurement",
-    summaryHi: "हमारे सिविल इंजीनियर आपके प्लॉट पर पहुंचकर डिजिटल लेजर और जीपीएस से रोड, बाउंड्री और ढलान मापते हैं।",
-    summaryEn: "Our civil engineers physically visit your plot in Pratapgarh to verify boundaries, road width, and slope.",
-    summaryHinglish: "Hamare engineer plot par jakar exact zameeni nap aur road level check karte hain.",
-    timeline: "Day 1 - 2",
-    clientRoleHi: "साइट विज़िट की तारीख कन्फर्म करना और इंजीनियर को प्लॉट दिखाना।",
-    clientRoleEn: "Confirm site visit slot and show boundary marks to our visiting engineer.",
-    sardaRoleHi: "डिजिटल लेजर नाप, रोड चौड़ाई, मिट्टी का ढलान और दिशा (वास्तु कम्पास) जांच।",
-    sardaRoleEn: "Digital laser measurement, road clearance, soil slope, and true North Vastu compass check.",
-    deliverableHi: "सत्यापित ज़मीनी नाप व साइट इंस्पेक्शन रिपोर्ट",
-    deliverableEn: "Verified Land Survey & Site Orientation Report",
+    titleHi: "प्लॉट की ज़मीनी नाप व साइट विज़िट",
+    titleEn: "Plot Measurement & Site Visit",
+    titleHinglish: "Site Visit & Land Measurement",
+    summaryHi: "प्रतापगढ़ व आसपास हम खुद आपके प्लॉट पर आकर ज़मीनी नाप, रोड चौड़ाई और दिशा चेक करते हैं।",
+    summaryEn: "In Pratapgarh & nearby areas, we visit your plot to check exact boundaries, road frontage, and orientation.",
+    summaryHinglish: "Plot par aakar exact zameeni nap, road chaudai aur disha verify karna.",
+    timeline: "Step 2 (1-2 दिन)",
+    detailsHi: [
+      "प्लॉट की वास्तविक ज़मीनी नाप का सत्यापन",
+      "सामने की सड़क की चौड़ाई और बाउंड्री का मिलान",
+      "वास्तु के लिए मुख्य दिशा और सूर्य प्रकाश की स्थिति देखना",
+    ],
+    detailsEn: [
+      "Physical measurement verification on your plot",
+      "Road frontage width and boundary alignment check",
+      "True North direction and sunlight orientation check",
+    ],
+    deliverableHi: "सत्यापित ज़मीनी नाप व प्लॉट डिटेल्स",
+    deliverableEn: "Verified Plot Dimensions & Site Details",
   },
   {
     step: "03",
-    titleHi: "2D कैड नक्शा व वास्तु अलाइनमेंट",
-    titleEn: "2D Architectural CAD Drafting & Vastu",
-    titleHinglish: "2D CAD Floor Plan & Vastu Drafting",
-    summaryHi: "सीनियर आर्किटेक्ट द्वारा मिलीमीटर सटीकता, दीवार मोटाई, आग्नेय कोण में किचन और ईशान में पूजा घर के साथ ड्राफ्ट।",
-    summaryEn: "Senior architects draft precise 2D floor plans with structural wall thickness and strict Vastu alignment.",
-    summaryHinglish: "Architect millimeter nap aur shuddh Vastu niyam ke sath pehla 2D concept naksha banate hain.",
-    timeline: "Day 2 - 3",
-    clientRoleHi: "डैशबोर्ड पर लॉगिन करके पहले 2D ड्राफ्ट का निरीक्षण करना।",
-    clientRoleEn: "Log in to customer dashboard to inspect the first watermarked 2D layout.",
-    sardaRoleHi: "कैड ड्राफ्टिंग, फर्नीचर लेआउट, क्रॉस वेंटिलेशन और कॉलम बीम की प्रारंभिक प्लानिंग।",
-    sardaRoleEn: "CAD drafting, functional furniture layout, natural ventilation, and column spacing.",
-    deliverableHi: "कस्टमर डैशबोर्ड पर प्रथम 2D ड्राफ्ट ब्लूप्रिंट",
-    deliverableEn: "First Concept 2D Blueprint uploaded to Dashboard",
+    titleHi: "2D फ्लोर प्लान व वास्तु ड्राफ्ट",
+    titleEn: "2D Floor Plan & Vastu Layout",
+    titleHinglish: "2D CAD Floor Plan & Layout",
+    summaryHi: "आपकी ज़रूरतों के हिसाब से कमरों का सही साइज, दीवारें, और वास्तु के अनुसार किचन-मंदिर का ड्राफ्ट तैयार होता है।",
+    summaryEn: "We prepare the 2D floor layout with room dimensions, wall layout, and Vastu placement.",
+    summaryHinglish: "Kamro ka layout, deewar ki nap aur Vastu sthan ke sath 2D naksha banna.",
+    timeline: "Step 3 (2-3 दिन)",
+    detailsHi: [
+      "हर कमरे, किचन और हॉल का स्पष्ट साइज",
+      "वास्तु अनुसार आग्नेय कोण में किचन व ईशान में पूजा स्थान",
+      "प्राकृतिक हवा और धूप के लिए खिड़कियों की सही प्लानिंग",
+    ],
+    detailsEn: [
+      "Clear room dimensions for bedrooms, kitchen & living hall",
+      "Vastu alignment for kitchen, puja space & master bedroom",
+      "Cross-ventilation and natural lighting positioning",
+    ],
+    deliverableHi: "कस्टमर डैशबोर्ड पर पहला 2D कॉन्सेप्ट ड्राफ्ट",
+    deliverableEn: "First 2D Floor Plan Draft on your Customer Dashboard",
   },
   {
     step: "04",
-    titleHi: "रिव्यू व 'Final the Map' स्वीकृति",
-    titleEn: "Client Review & Revisions Flow",
-    titleHinglish: "Review & 'Final the Map' Approval",
-    summaryHi: "अगर कोई बदलाव चाहिए तो 'Need Change' दबाएं। पूरी तरह संतुष्ट होने पर 'Final the Map' पर क्लिक करके फाइनल करें।",
-    summaryEn: "Request room size adjustments via 'Need Change' or click 'Final the Map' when 100% satisfied.",
-    summaryHinglish: "Badlav chahiye toh 'Need Change' karein, pasand aane par 'Final the Map' par click karein.",
-    timeline: "Day 3 - 4",
-    clientRoleHi: "परिवर्तन सुझाना या 'Final the Map' बटन दबाकर अंतिम स्वीकृति देना।",
-    clientRoleEn: "Suggest modifications or click 'Final the Map' to approve the floor plan.",
-    sardaRoleHi: "क्लाइंट के सुझावों के अनुसार तुरंत संशोधन करना और फाइनल लेआउट लॉक करना।",
-    sardaRoleEn: "Incorporate client revisions in CAD and finalize structural dimensions.",
-    deliverableHi: "क्लाइंट द्वारा स्वीकृत फाइनल 2D लेआउट",
-    deliverableEn: "Client-Approved Final 2D Floor Layout",
+    titleHi: "रिव्यू व अपनी पसंद अनुसार बदलाव",
+    titleEn: "Review & Adjustments ('Final the Map')",
+    titleHinglish: "Review & Revisions ('Final the Map')",
+    summaryHi: "डैशबोर्ड पर नक्शा देखें। बदलाव चाहिए तो 'Need Change' बताएं, पसंद आने पर 'Final the Map' दबाएं।",
+    summaryEn: "Review the plan on your dashboard. Request adjustments if needed, or approve when you love it.",
+    summaryHinglish: "Naksha check karein, zaroorat ho to badlav karwayein, pasand aane par approve karein.",
+    timeline: "Step 4 (3-4 दिन)",
+    detailsHi: [
+      "मोबाइल या कंप्यूटर पर अपना 2D नक्शा कभी भी देखें",
+      "कमरे के साइज या दरवाजे की दिशा में आसानी से बदलाव कराएं",
+      "संतुष्ट होने पर 'Final the Map' बटन दबाकर अंतिम सहमति दें",
+    ],
+    detailsEn: [
+      "Inspect your 2D plan on phone or computer anytime",
+      "Request room size or door position changes easily",
+      "Click 'Final the Map' when completely satisfied",
+    ],
+    deliverableHi: "आपकी पसंद का फाइनल स्वीकृत 2D लेआउट",
+    deliverableEn: "Approved Final 2D Floor Layout",
   },
   {
     step: "05",
-    titleHi: "3D एलिवेशन, स्ट्रक्चरल ड्राइंग व डिलीवरी",
-    titleEn: "3D Elevation, Structural Set & Handover",
-    titleHinglish: "3D Elevation & Final Blueprint Delivery",
-    summaryHi: "फोटो-रियलिस्टिक 3D एक्सटीरियर व्यू, कॉलम-बीम डिटेल, म्युनिसिपल रेडी सेट और हाई-रेजोल्यूशन पीडीएफ डाउनलोड।",
-    summaryEn: "Photorealistic 3D exterior elevation, column-beam structural drawings, and municipal-ready PDF blueprints.",
-    summaryHinglish: "3D front elevation, column-beam structural detail, aur print-ready final map delivery.",
-    timeline: "Day 4 - 5",
-    clientRoleHi: "डैशबोर्ड से हाई-रेजोल्यूशन ब्लूप्रिंट डाउनलोड करना व डोरस्टेप हार्डकॉपी प्राप्त करना।",
-    clientRoleEn: "Download unwatermarked high-res CAD files and receive physical prints.",
-    sardaRoleHi: "3D रेंडरिंग, स्ट्रक्चरल वर्किंग ड्राइंग्स, म्युनिसिपल अप्रूवल सेट और हार्डकॉपी प्रिंटिंग।",
-    sardaRoleEn: "3D rendering, electrical/plumbing layout, municipal sanction drawings, and physical print.",
-    deliverableHi: "कंप्लीट आर्किटेक्चरल सेट (PDF + हार्डकॉपी प्रिंट)",
-    deliverableEn: "Full Certified Architectural Package (PDF + Physical Prints)",
+    titleHi: "3D फ्रंट एलिवेशन व फाइनल डिलीवरी",
+    titleEn: "3D Front Elevation & Final Delivery",
+    titleHinglish: "3D Elevation & Print-Ready Map Delivery",
+    summaryHi: "घर का सुंदर 3D फ्रंट डिजाइन, कॉलम-बीम लेआउट और मिस्त्री के काम आने वाला फाइनल प्रिंटेबल नक्शा प्राप्त करें।",
+    summaryEn: "Receive realistic 3D exterior front elevation, column markings, and print-ready final map.",
+    summaryHinglish: "3D front look, column marking aur print-ready final map prapt karein.",
+    timeline: "Step 5 (4-5 दिन)",
+    detailsHi: [
+      "सामने से घर कैसा दिखेगा उसका सुंदर 3D कलर डिजाइन",
+      "मिस्त्री और ठेकेदार के लिए स्पष्ट कॉलम और बीम मार्किंग",
+      "डैशबोर्ड से हाई-क्वालिटी पीडीएफ डाउनलोड व हार्डकॉपी प्रिंट",
+    ],
+    detailsEn: [
+      "Realistic 3D front exterior color look of your home",
+      "Clear column and beam markings for masons and builders",
+      "High-res PDF download from dashboard & physical print",
+    ],
+    deliverableHi: "फाइनल ब्लूप्रिंट + 3D एलिवेशन सेट",
+    deliverableEn: "Complete House Map + 3D Elevation Package",
   },
 ];
 
@@ -317,41 +343,41 @@ const FAQS = [
     qHi: "नक्शा बनाने में कितना समय लगता है?",
     qEn: "How much time does it take to make a house plan?",
     qHinglish: "Map banane me kitna time lagta hai?",
-    aHi: "प्रारंभिक 2D कॉन्सेप्ट प्लान हम 24 से 48 घंटे के भीतर आपके कस्टमर डैशबोर्ड पर अपलोड कर देते हैं। क्लाइंट रिव्यू और सुझावों के बाद फाइनल कैड ब्लूप्रिंट 3 से 4 दिन में पूरी तरह डिलीवर हो जाता है।",
-    aEn: "The initial 2D concept is uploaded to your customer portal within 24 to 48 hours. After client review and revisions, the final certified blueprints are delivered in 3 to 4 days.",
-    aHinglish: "Initial rough concept plan hum 24 se 48 ghante me customer dashboard par upload kar dete hain. Customer review aur revisions ke baad final CAD blueprint 3 se 4 din me deliver hota hai.",
+    aHi: "प्रारंभिक 2D कॉन्सेप्ट प्लान हम 24 से 48 घंटे के भीतर आपके कस्टमर डैशबोर्ड पर अपलोड कर देते हैं। आपके सुझावों और बदलावों के बाद फाइनल नक्शा 3 से 4 दिन में डिलीवर हो जाता है।",
+    aEn: "The initial 2D concept is uploaded to your customer portal within 24 to 48 hours. After review and revisions, the final drawings are delivered in 3 to 4 days.",
+    aHinglish: "Initial rough concept plan hum 24 se 48 ghante me customer dashboard par upload kar dete hain. Review aur revisions ke baad final map 3 se 4 din me deliver hota hai.",
   },
   {
-    qHi: "क्या आप वास्तु परामर्श भी देते हैं?",
-    qEn: "Do you also provide Vastu consultation?",
-    qHinglish: "Kya aap Vastu consultation bhi dete hain?",
-    aHi: "हाँ, बिल्कुल! हमारे हर प्लान में बुनियादी वास्तु सिद्धांतों (जैसे आग्नेय कोण में रसोई, ईशान कोण में पूजा घर, और नैऋत्य कोण में मास्टर बेडरूम) का शत-प्रतिशत पालन किया जाता है।",
-    aEn: "Yes, absolutely! Every layout strictly incorporates Vastu principles (kitchen in Agni Kon, prayer room in Ishan Kon, master bedroom in Nairutya Kon) with natural airflow and sunlight.",
-    aHinglish: "Haan, bilkul! Hamare har plan me basic Vastu principles (jaise Agni Kon me kitchen, Ishan Kon me puja ghar, aur Nairutya me master bedroom) ko default me follow kiya jata hai.",
+    qHi: "क्या आप वास्तु के अनुसार नक्शा बनाते हैं?",
+    qEn: "Do you design plans as per Vastu?",
+    qHinglish: "Kya aap Vastu ke anusaar map banate hain?",
+    aHi: "हाँ! हमारे हर प्लान में आग्नेय कोण में रसोई, ईशान कोण में पूजा घर, और नैऋत्य कोण में मास्टर बेडरूम का ध्यान रखा जाता है ताकि घर में सुख और शांति बनी रहे।",
+    aEn: "Yes! Every layout incorporates practical Vastu guidelines (kitchen in Agni Kon, puja room in Ishan Kon, master bed in Nairutya) with proper ventilation.",
+    aHinglish: "Haan! Hamare har plan me Agni Kon me kitchen, Ishan Kon me puja ghar, aur master bedroom ka Vastu dhyan rakha jata hai.",
   },
   {
     qHi: "क्या मैं अपना हाथ से बना रफ स्केच भेज सकता हूँ?",
     qEn: "Can I share my hand-drawn rough paper sketch?",
     qHinglish: "Kya mai apna rough sketch bhej sakta hu?",
-    aHi: "हाँ! आप किसी भी कागज या डायरी पर हाथ से बना हुआ रफ स्केच सीधे पोर्टल पर अपलोड कर सकते हैं या व्हाट्सएप पर भेज सकते हैं। हमारे आर्किटेक्ट उसे मिलीमीटर सटीकता के साथ कैड में री-ड्रा करते हैं।",
-    aEn: "Yes! You can take a photo of your paper sketch or diary notes and upload it on our portal or WhatsApp. Our licensed architects convert it into professional CAD blueprints.",
-    aHinglish: "Haan! Aap kisi bhi kaghaz ya diary par hath se bana hua rough sketch WhatsApp par bhej sakte hain ya hamare portal par direct upload kar sakte hain.",
+    aHi: "हाँ! आप किसी भी कागज या डायरी पर हाथ से बना हुआ रफ स्केच सीधे पोर्टल पर अपलोड कर सकते हैं या व्हाट्सएप (+91 8423406049) पर भेज सकते हैं। हम उसे साफ 2D नक्शे में बदल देंगे।",
+    aEn: "Yes! You can take a photo of your paper sketch and upload it on our portal or send it on WhatsApp (+91 8423406049). We redraw it into clean 2D plans.",
+    aHinglish: "Haan! Aap kisi bhi kaghaz par bana rough sketch WhatsApp (+91 8423406049) par bhej sakte hain ya hamare portal par direct upload kar sakte hain.",
   },
   {
     qHi: "क्या आप साइट विज़िट करते हैं?",
-    qEn: "Do you conduct on-site physical visits?",
+    qEn: "Do you visit the plot physically?",
     qHinglish: "Kya aap site visit karte hain?",
-    aHi: "हाँ! प्रतापगढ़, प्रयागराज, सुल्तानपुर, जौनपुर और आसपास के सभी क्षेत्रों में हमारी फील्ड टीम खुद प्लॉट पर आकर डिजिटल लेजर से नाप और रोड लेवल चेक करती है।",
-    aEn: "Yes! In Pratapgarh and neighboring districts (Prayagraj, Sultanpur, Jaunpur), our field engineers physically inspect your plot with laser meters to guarantee 100% boundary accuracy.",
-    aHinglish: "Haan! Pratapgarh, Prayagraj, Sultanpur, Jaunpur aur aas-paas ke sabhi kshetro me hamari team physically plot par aakar measurements verify karti hai.",
+    aHi: "हाँ! प्रतापगढ़ और आसपास के क्षेत्रों में हमारी टीम खुद आपके प्लॉट पर आकर ज़मीनी नाप और रोड की स्थिति चेक करती है।",
+    aEn: "Yes! In Pratapgarh and neighboring areas, our team physically visits your plot to check measurements and road conditions.",
+    aHinglish: "Haan! Pratapgarh aur aas-paas ke ilaqon me hamari team physically plot par aakar measurements check karti hai.",
   },
   {
     qHi: "पेमेंट कैसे करना होता है?",
-    qEn: "How does the payment process work?",
+    qEn: "How does the payment work?",
     qHinglish: "Payment kaise karna hota hai?",
-    aHi: "पेमेंट बहुत पारदर्शी और सुरक्षित है। साइट विज़िट या ड्राफ्टिंग शुरू करने के लिए छोटा एडवांस अमाउंट लिया जाता है। आप यूपीआई, फोनपे, गूगल पे से पे कर सकते हैं और वेरिफाइड रसीद डैशबोर्ड से डाउनलोड कर सकते हैं।",
-    aEn: "Payment is transparent and milestone-based. A nominal advance is taken for survey and drafting, payable via UPI, PhonePe, or Google Pay with instant dashboard receipts.",
-    aHinglish: "Payment bahut transparent aur safe hai. Site visit ya drafting shuru karne ke liye chhota advance amount lia jata hai. Aap UPI, PhonePe, Google Pay se payment kar sakte hain.",
+    aHi: "पेमेंट बहुत आसान और पारदर्शी है। काम शुरू करने के लिए थोड़ा एडवांस लिया जाता है। आप फोनपे, गूगल पे, यूपीआई से पेमेंट कर सकते हैं और रसीद डैशबोर्ड से डाउनलोड कर सकते हैं।",
+    aEn: "Payment is simple and milestone-based. A small advance is taken to start drafting, payable via UPI, PhonePe, or Google Pay with dashboard receipts.",
+    aHinglish: "Payment transparent hai. Thoda advance lekar drafting shuru hoti hai. Aap PhonePe, Google Pay, UPI se payment kar sakte hain.",
   },
 ];
 
@@ -363,7 +389,6 @@ export default function Home() {
   const [currentUser, setCurrentUser] = useState<any>(null);
 
   // Modals & Popups
-  const [loginRoleModalOpen, setLoginRoleModalOpen] = useState(false);
   const [authPromptModalOpen, setAuthPromptModalOpen] = useState(false);
   const [quickInquiryOpen, setQuickInquiryOpen] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
@@ -607,7 +632,7 @@ export default function Home() {
   return (
     <main className="min-h-screen w-full bg-[#f8f6f0] text-[#17221b]">
       {/* =====================================================================
-          1. TOP NAVBAR (Elegant Cream & Deep Emerald Design)
+          1. TOP NAVBAR (Clean Ivory/Cream & Deep Emerald)
       ===================================================================== */}
       <header className="sticky top-0 z-50 border-b border-[#e8e2d4] bg-[#f8f6f0]/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3.5 sm:px-8 lg:px-10">
@@ -701,10 +726,9 @@ export default function Home() {
               <Search size={15} />
             </button>
 
-            {/* LOGIN BUTTON: Opens Role Selection Modal */}
-            <button
-              type="button"
-              onClick={() => setLoginRoleModalOpen(true)}
+            {/* CUSTOMER LOGIN LINK (Directly goes to /customer/login or /customer/dashboard) */}
+            <Link
+              href={currentUser ? "/customer/dashboard" : "/customer/login"}
               className="flex items-center gap-1.5 rounded-full border border-black/15 bg-white/80 px-4 py-2 text-xs font-bold text-[#17221b] shadow-sm transition hover:bg-white hover:border-[#063b2c]"
             >
               <LogIn size={13} className="text-[#063b2c]" />
@@ -717,7 +741,7 @@ export default function Home() {
                   ? "लॉगिन"
                   : "Login"}
               </span>
-            </button>
+            </Link>
 
             {/* Primary CTA Button: Checks Auth First */}
             <button
@@ -788,17 +812,22 @@ export default function Home() {
                 {lang === "hi" ? "संपर्क" : "Contact"}
               </a>
               <div className="pt-2 flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    setLoginRoleModalOpen(true);
-                  }}
+                <Link
+                  href={currentUser ? "/customer/dashboard" : "/customer/login"}
+                  onClick={() => setMobileMenuOpen(false)}
                   className="flex w-full items-center justify-center gap-2 rounded-xl border border-black/15 bg-white py-2.5 text-xs font-bold text-black/80"
                 >
                   <LogIn size={14} />
-                  <span>{lang === "hi" ? "लॉगिन पोर्टल चुनें" : "Select Login Portal"}</span>
-                </button>
+                  <span>
+                    {currentUser
+                      ? lang === "hi"
+                        ? "कस्टमर डैशबोर्ड"
+                        : "Customer Dashboard"
+                      : lang === "hi"
+                      ? "कस्टमर लॉगिन"
+                      : "Customer Login"}
+                  </span>
+                </Link>
                 <button
                   type="button"
                   onClick={() => {
@@ -816,7 +845,7 @@ export default function Home() {
       </header>
 
       {/* =====================================================================
-          2. HERO SECTION (Crisp Cream Theme Without Distracting Underline)
+          2. HERO SECTION
       ===================================================================== */}
       <section id="home" className="relative overflow-hidden pt-8 pb-14 sm:pt-12 sm:pb-20">
         <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
@@ -838,7 +867,7 @@ export default function Home() {
                 </span>
               </div>
 
-              {/* Main Headline (Clean typography, no wavy underline) */}
+              {/* Main Headline */}
               <h1 className="font-serif text-4xl font-extrabold leading-[1.14] tracking-tight text-[#11241c] sm:text-5xl lg:text-[54px] xl:text-[58px]">
                 {lang === "hi" ? (
                   <>
@@ -864,10 +893,10 @@ export default function Home() {
               {/* Subtitle */}
               <p className="mt-5 max-w-xl text-base leading-relaxed text-black/65 sm:text-lg">
                 {lang === "hi"
-                  ? "आपके रफ स्केच से लेकर प्रोफेशनल हाउस मैप तक — "
+                  ? "आपके रफ स्केच से लेकर सुंदर हाउस मैप तक — "
                   : lang === "en"
-                  ? "From your rough sketch to professional CAD house blueprints — "
-                  : "Aapke rough sketch se lekar professional house map tak — "}
+                  ? "From your rough sketch to clear 2D house maps — "
+                  : "Aapke rough sketch se lekar clear house map tak — "}
                 <strong className="text-[#063b2c]">
                   {lang === "hi" ? "आसान, किफायती" : "simple, affordable"}
                 </strong>{" "}
@@ -983,18 +1012,18 @@ export default function Home() {
                       className="h-full w-full object-cover"
                     />
 
-                    {/* Gradient Overlay for Blueprint effect */}
+                    {/* Gradient Overlay */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
 
-                    {/* Verified Blueprint Badge */}
+                    {/* Honest Badge */}
                     <div className="absolute bottom-3.5 left-3.5 flex items-center gap-2 rounded-xl bg-black/75 px-3 py-1.5 backdrop-blur-md border border-white/20 text-white shadow-lg">
                       <ShieldCheck size={16} className="text-[#f4cf72]" />
-                      <span className="text-[11px] font-bold">100% Vastu & Municipal Approved</span>
+                      <span className="text-[11px] font-bold">100% Vastu Friendly & Custom Designs</span>
                     </div>
                   </div>
                 </div>
 
-                {/* 4 Floating Badges (From Mockup) */}
+                {/* 4 Floating Badges */}
                 <div className="absolute -bottom-6 -right-2 z-20 flex flex-col gap-2 rounded-2xl border border-white/80 bg-white/95 p-3.5 shadow-xl backdrop-blur-md text-xs sm:-right-4">
                   <div className="flex items-center gap-2 font-bold text-[#17221b]">
                     <div className="flex h-5 w-5 items-center justify-center rounded bg-[#eef8f4] text-[#0c7a62]">
@@ -1093,12 +1122,12 @@ export default function Home() {
       </section>
 
       {/* =====================================================================
-          4. ABOUT US SECTION (Dedicated, Highly Functional, Anchor-Linked)
+          4. ABOUT US SECTION (Honest, Real & Customer Focused)
       ===================================================================== */}
       <section id="about" className="py-20 sm:py-24 border-b border-[#e8e2d4]">
         <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
           <div className="grid items-center gap-12 lg:grid-cols-12">
-            {/* Left 6 Cols: Story & Values */}
+            {/* Left 6 Cols */}
             <div className="lg:col-span-6">
               <span className="text-[10px] font-extrabold uppercase tracking-[0.25em] text-[#9b7732]">
                 {lang === "hi" ? "हमारे बारे में" : "About Sarda Homeplan"}
@@ -1106,36 +1135,36 @@ export default function Home() {
               <h2 className="mt-2 font-serif text-3xl sm:text-4xl font-extrabold text-[#11241c] leading-tight">
                 {lang === "hi" ? (
                   <>
-                    प्रतापगढ़ का सबसे विश्वसनीय{" "}
-                    <span className="text-[#c18c21]">हाउस प्लानिंग व सिविल इंजीनियरिंग</span> संस्थान।
+                    प्रतापगढ़ का विश्वसनीय{" "}
+                    <span className="text-[#c18c21]">हाउस प्लानिंग व 2D/3D मैप</span> स्टूडियो।
                   </>
                 ) : (
                   <>
-                    Pratapgarh&apos;s Most Trusted{" "}
-                    <span className="text-[#c18c21]">Architectural & Civil Engineering</span> Studio.
+                    Pratapgarh&apos;s Trusted{" "}
+                    <span className="text-[#c18c21]">House Planning & Map Design</span> Studio.
                   </>
                 )}
               </h2>
 
               <p className="mt-4 text-sm leading-relaxed text-black/70">
                 {lang === "hi"
-                  ? "सरदा होमप्लान की स्थापना इंजीनियर सरदा और अनुभवी सिविल इंजीनियर्स व आर्किटेक्ट्स की टीम द्वारा की गई। हमारा उद्देश्य हर परिवार को—चाहे वे शहर में हों या ग्रामीण क्षेत्र में—अंतरराष्ट्रीय स्तर का आधुनिक, मजबूत और 100% वास्तु-सम्मत घर का नक्शा किफायती दाम में उपलब्ध कराना है।"
-                  : "Sarda Homeplan was founded by licensed civil engineers and architectural consultants in Pratapgarh. Our mission is to make certified, durable, and Vastu-compliant architectural blueprints accessible and transparent for families across Eastern UP."}
+                  ? "सरदा होमप्लान प्रतापगढ़ और आसपास के क्षेत्रों में परिवारों के लिए व्यावहारिक, आधुनिक और 100% वास्तु-अनुकूल घर का नक्शा तैयार करता है। हम आपके प्लॉट के साइज और बजट के अनुसार 2D फ्लोर प्लान लेआउट, 3D एलिवेशन और ज़मीनी नाप की सुविधा प्रदान करते हैं।"
+                  : "Sarda Homeplan provides practical, customized, and Vastu-friendly house map planning in Pratapgarh and nearby areas. We deliver clean 2D floor plans, 3D exterior looks, and on-site plot measurements tailored to your plot and budget."}
               </p>
 
-              {/* 4 Pillars of Trust */}
+              {/* 4 Realistic Pillars */}
               <div className="mt-8 grid gap-4 sm:grid-cols-2">
                 <div className="rounded-2xl border border-[#e4ddcc] bg-white p-4 shadow-sm">
                   <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#063b2c] text-[#f4cf72] mb-2.5">
-                    <Wrench size={16} />
+                    <Ruler size={16} />
                   </div>
                   <h4 className="font-bold text-sm text-[#11241c]">
-                    {lang === "hi" ? "इंजीनियरिंग सटीकता" : "Engineering Rigor"}
+                    {lang === "hi" ? "स्मार्ट स्पेस प्लानिंग" : "Smart Space Planning"}
                   </h4>
                   <p className="text-xs text-black/60 mt-1">
                     {lang === "hi"
-                      ? "कॉलम-बीम का सही लोड डिस्ट्रीब्यूशन ताकि घर पीढ़ियों तक मजबूत रहे।"
-                      : "Accurate column-beam load distribution ensuring decades of structural safety."}
+                      ? "कम जगह में भी खुला और हवादार घर बनाने के लिए हर कोने का सही उपयोग।"
+                      : "Smart space utilization to create spacious, well-lit, and ventilated rooms."}
                   </p>
                 </div>
 
@@ -1144,12 +1173,12 @@ export default function Home() {
                     <Compass size={16} />
                   </div>
                   <h4 className="font-bold text-sm text-[#11241c]">
-                    {lang === "hi" ? "वैज्ञानिक वास्तु संतुलन" : "Scientific Vastu"}
+                    {lang === "hi" ? "वास्तु अनुकूल लेआउट" : "Vastu Friendly Layout"}
                   </h4>
                   <p className="text-xs text-black/60 mt-1">
                     {lang === "hi"
-                      ? "सूर्य प्रकाश और प्राकृतिक वायु का संतुलन, बिना अंधविश्वास या तोड़-फोड़ के।"
-                      : "Positive spatial balance, maximum sunlight and airflow without demolition."}
+                      ? "रसोई, पूजा घर और कमरों का वास्तु अनुसार सही स्थान।"
+                      : "Proper room positioning as per practical Vastu principles for peace and harmony."}
                   </p>
                 </div>
 
@@ -1158,26 +1187,26 @@ export default function Home() {
                     <MapPin size={16} />
                   </div>
                   <h4 className="font-bold text-sm text-[#11241c]">
-                    {lang === "hi" ? "ज़मीनी साइट विज़िट" : "Physical Site Visits"}
+                    {lang === "hi" ? "ऑन-साइट ज़मीनी नाप" : "On-Site Plot Measurement"}
                   </h4>
                   <p className="text-xs text-black/60 mt-1">
                     {lang === "hi"
-                      ? "हमारे इंजीनियर सीधे आपके प्लॉट पर डिजिटल लेजर मीटर से सही नाप लेते हैं।"
-                      : "Our engineers physically visit your land with digital laser tools to verify boundaries."}
+                      ? "प्रतापगढ़ और आसपास प्लॉट पर आकर ज़मीनी नाप व दिशा देखने की सुविधा।"
+                      : "Physical on-site visit to inspect plot measurements, boundary marks and road front."}
                   </p>
                 </div>
 
                 <div className="rounded-2xl border border-[#e4ddcc] bg-white p-4 shadow-sm">
                   <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#063b2c] text-[#f4cf72] mb-2.5">
-                    <Award size={16} />
+                    <FileText size={16} />
                   </div>
                   <h4 className="font-bold text-sm text-[#11241c]">
-                    {lang === "hi" ? "नगर पालिका बायलॉज रेडी" : "Municipal Sanction Ready"}
+                    {lang === "hi" ? "सरल निर्माण ड्राइंग" : "Clear Construction Drawings"}
                   </h4>
                   <p className="text-xs text-black/60 mt-1">
                     {lang === "hi"
-                      ? "सभी नक्शे सरकारी व विकास प्राधिकरण मानकों के शत-प्रतिशत अनुरूप।"
-                      : "All drawings comply strictly with local municipal authority building codes."}
+                      ? "मिस्त्री और ठेकेदार के आसानी से समझने योग्य स्पष्ट 2D ब्लूप्रिंट।"
+                      : "Clear, easy-to-follow layout drawings for masons and local contractors."}
                   </p>
                 </div>
               </div>
@@ -1193,22 +1222,22 @@ export default function Home() {
                 </button>
 
                 <a
-                  href="tel:+919576543210"
+                  href="tel:+918423406049"
                   className="flex items-center gap-2 rounded-full border border-black/15 bg-white px-5 py-3 text-xs font-bold text-[#17221b] shadow-sm hover:border-[#063b2c]"
                 >
                   <Phone size={13} className="text-[#0c7a62]" />
-                  <span>+91 95765 43210</span>
+                  <span>+91 8423406049</span>
                 </a>
               </div>
             </div>
 
-            {/* Right 6 Cols: Visual Card with Guarantee Badge */}
+            {/* Right 6 Cols: Visual Card with Honest Badge */}
             <div className="lg:col-span-6">
               <div className="relative rounded-3xl border-2 border-white bg-gradient-to-br from-[#f2ece1] to-[#e4dac6] p-4 shadow-2xl">
                 <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-neutral-900">
                   <img
                     src="/portfolio/house-plan-02-hd.jpg"
-                    alt="Sarda Homeplan Architectural Studio"
+                    alt="Sarda Homeplan House Design"
                     className="h-full w-full object-cover"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
@@ -1216,30 +1245,30 @@ export default function Home() {
                   <div className="absolute bottom-4 left-4 right-4 text-white">
                     <div className="flex items-center gap-2 text-xs font-bold text-[#f4cf72] mb-1">
                       <CheckCircle2 size={16} />
-                      <span>Certified Architectural Drafting</span>
+                      <span>Custom House Map Planning</span>
                     </div>
                     <p className="font-serif text-lg font-bold">
                       &ldquo;Har Ghar Ka Naksha, Jaise Hamara Apna Ghar Ho.&rdquo;
                     </p>
                     <p className="text-[11px] text-white/70 mt-0.5">
-                      Serving Pratapgarh, Prayagraj, Sultanpur, Jaunpur, Varanasi & surrounding areas.
+                      Pratapgarh, Prayagraj, Sultanpur & surrounding areas.
                     </p>
                   </div>
                 </div>
 
-                {/* 3 Quick Facts below image */}
+                {/* 3 Quick Facts */}
                 <div className="mt-4 grid grid-cols-3 gap-2 text-center">
                   <div className="rounded-xl bg-white/80 p-2.5 border border-black/5 shadow-sm">
                     <span className="font-serif text-base font-black text-[#063b2c]">100%</span>
-                    <p className="text-[10px] text-black/60 font-semibold">Vastu Verified</p>
+                    <p className="text-[10px] text-black/60 font-semibold">Vastu Friendly</p>
                   </div>
                   <div className="rounded-xl bg-white/80 p-2.5 border border-black/5 shadow-sm">
                     <span className="font-serif text-base font-black text-[#063b2c]">48 Hrs</span>
                     <p className="text-[10px] text-black/60 font-semibold">First 2D Draft</p>
                   </div>
                   <div className="rounded-xl bg-white/80 p-2.5 border border-black/5 shadow-sm">
-                    <span className="font-serif text-base font-black text-[#063b2c]">Unlimited</span>
-                    <p className="text-[10px] text-black/60 font-semibold">Draft Revisions</p>
+                    <span className="font-serif text-base font-black text-[#063b2c]">Easy</span>
+                    <p className="text-[10px] text-black/60 font-semibold">Revisions</p>
                   </div>
                 </div>
               </div>
@@ -1257,7 +1286,7 @@ export default function Home() {
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
               <span className="text-[10px] font-extrabold uppercase tracking-[0.25em] text-[#9b7732]">
-                {lang === "hi" ? "हमारा आर्किटेक्चरल काम" : "Our Architectural Portfolio"}
+                {lang === "hi" ? "हमारा काम" : "Our Work Portfolio"}
               </span>
               <h2 className="mt-1 font-serif text-3xl sm:text-4xl font-extrabold text-[#11241c]">
                 {lang === "hi" ? (
@@ -1272,7 +1301,7 @@ export default function Home() {
               </h2>
               <p className="mt-1 text-xs sm:text-sm text-black/60">
                 {lang === "hi"
-                  ? "हमारे हाल ही में तैयार किए गए नक्शे। पूरा आर्किटेक्चरल मैप देखने के लिए किसी भी कार्ड पर क्लिक करें।"
+                  ? "हमारे हाल ही में तैयार किए गए नक्शे। बड़ा नक्शा देखने के लिए किसी भी कार्ड पर क्लिक करें।"
                   : "Some of our recent work. Click any card to view full architectural blueprint."}
               </p>
             </div>
@@ -1373,13 +1402,13 @@ export default function Home() {
       </section>
 
       {/* =====================================================================
-          6. COMPREHENSIVE 5-PHASE PROCESS ("HOW IT WORKS") & VOICE ASSISTANT
+          6. HOW IT WORKS & VOICE ASSISTANT (Simple, Client-Focused)
       ===================================================================== */}
       <section id="process" className="border-t border-[#e8e2d4] bg-[#fbf9f4] py-20 sm:py-24">
         <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
           <div className="text-center">
             <span className="text-[10px] font-extrabold uppercase tracking-[0.25em] text-[#9b7732]">
-              {lang === "hi" ? "पूरी 5-चरणीय प्रक्रिया" : "Complete 5-Phase Architecture Workflow"}
+              {lang === "hi" ? "आसान प्रक्रिया" : "Simple 5-Step Process"}
             </span>
             <h2 className="mt-1 font-serif text-3xl sm:text-4xl font-extrabold text-[#11241c]">
               {lang === "hi" ? (
@@ -1394,8 +1423,8 @@ export default function Home() {
             </h2>
             <p className="mt-1 text-xs sm:text-sm text-black/60 max-w-xl mx-auto">
               {lang === "hi"
-                ? "प्रारंभिक रिक्वायरमेंट फॉर्म से लेकर साइट विज़िट, ड्राफ्ट रिवीजन और फाइनल 3D ब्लूप्रिंट तक का पूरा सफर।"
-                : "From initial requirement intake to on-site survey, CAD drafting, revision cycles, and certified blueprints."}
+                ? "रिक्वायरमेंट शेयर करने से लेकर साइट नाप, 2D ड्राफ्ट और 3D फाइनल नक्शे तक की सरल प्रक्रिया।"
+                : "From requirement submission to plot measurement, 2D draft review and final 3D handover."}
             </p>
           </div>
 
@@ -1441,7 +1470,7 @@ export default function Home() {
 
           {/* Selected Phase Detail Card & Voice Assistant Card */}
           <div className="mt-8 grid gap-6 lg:grid-cols-12 lg:items-stretch">
-            {/* Left 8 Cols: Detailed Phase Inspector */}
+            {/* Left 8 Cols: Customer-Centric Clean Workflow */}
             <div className="rounded-3xl border border-[#e4ddcc] bg-white p-7 shadow-lg lg:col-span-8 flex flex-col justify-between">
               <div>
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#f0ebdf] pb-4">
@@ -1455,7 +1484,7 @@ export default function Home() {
                           ? PROCESS_PHASES[selectedProcessPhase].titleHi
                           : PROCESS_PHASES[selectedProcessPhase].titleEn}
                       </h3>
-                      <p className="text-xs text-black/55">
+                      <p className="text-xs text-black/60 mt-0.5">
                         {lang === "hi"
                           ? PROCESS_PHASES[selectedProcessPhase].summaryHi
                           : PROCESS_PHASES[selectedProcessPhase].summaryEn}
@@ -1467,40 +1496,32 @@ export default function Home() {
                   </span>
                 </div>
 
-                {/* Deep Dual Comparison: What Customer Does vs What Sarda Does */}
-                <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-2xl bg-[#faf8f4] p-4 border border-[#eee7db]">
-                    <div className="flex items-center gap-2 text-xs font-bold text-[#063b2c] mb-2">
-                      <User size={15} />
-                      <span>{lang === "hi" ? "आपकी भूमिका (ग्राहक)" : "Your Role (Client)"}</span>
-                    </div>
-                    <p className="text-xs text-black/75 leading-relaxed">
-                      {lang === "hi"
-                        ? PROCESS_PHASES[selectedProcessPhase].clientRoleHi
-                        : PROCESS_PHASES[selectedProcessPhase].clientRoleEn}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl bg-[#faf8f4] p-4 border border-[#eee7db]">
-                    <div className="flex items-center gap-2 text-xs font-bold text-[#063b2c] mb-2">
-                      <ShieldCheck size={15} />
-                      <span>{lang === "hi" ? "सरदा होमप्लान टीम का काम" : "Sarda Engineering Team"}</span>
-                    </div>
-                    <p className="text-xs text-black/75 leading-relaxed">
-                      {lang === "hi"
-                        ? PROCESS_PHASES[selectedProcessPhase].sardaRoleHi
-                        : PROCESS_PHASES[selectedProcessPhase].sardaRoleEn}
-                    </p>
-                  </div>
+                {/* Key Checklist for this Phase */}
+                <div className="mt-5 rounded-2xl bg-[#faf8f4] p-4 border border-[#eee7db]">
+                  <h4 className="text-xs font-bold text-[#063b2c] uppercase tracking-wider mb-2.5 flex items-center gap-2">
+                    <CheckCircle2 size={15} />
+                    <span>{lang === "hi" ? "इस चरण में क्या होता है:" : "What happens in this step:"}</span>
+                  </h4>
+                  <ul className="space-y-2 text-xs text-black/75">
+                    {(lang === "hi"
+                      ? PROCESS_PHASES[selectedProcessPhase].detailsHi
+                      : PROCESS_PHASES[selectedProcessPhase].detailsEn
+                    ).map((point, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <span className="text-[#0c7a62] font-bold">•</span>
+                        <span>{point}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
 
-                {/* Deliverable Ribbon */}
+                {/* Output / Deliverable Ribbon */}
                 <div className="mt-4 flex items-center justify-between rounded-xl bg-[#eef8f4] p-3.5 border border-[#cceade]">
                   <div className="flex items-center gap-2.5">
                     <CheckCircle2 size={18} className="text-[#0c7a62] shrink-0" />
                     <div>
                       <span className="text-[10px] font-bold uppercase tracking-wider text-[#0c7a62]">
-                        {lang === "hi" ? "प्राप्त होने वाला परिणाम / डिलीवरी" : "Deliverable / Output"}
+                        {lang === "hi" ? "आपको क्या मिलता है:" : "What You Receive:"}
                       </span>
                       <p className="text-xs font-bold text-[#063b2c]">
                         {lang === "hi"
@@ -1514,7 +1535,7 @@ export default function Home() {
 
               <div className="mt-6 flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[#f0ebdf]">
                 <div className="flex items-center gap-2 text-xs text-black/50">
-                  <span>Phase {selectedProcessPhase + 1} of 5</span>
+                  <span>Step {selectedProcessPhase + 1} of 5</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -1533,7 +1554,7 @@ export default function Home() {
                     }
                     className="rounded-full bg-[#063b2c] px-3.5 py-1.5 text-xs font-bold text-white disabled:opacity-30"
                   >
-                    Next Phase →
+                    Next Step →
                   </button>
                 </div>
               </div>
@@ -1563,7 +1584,7 @@ export default function Home() {
                 </h3>
                 <p className="mt-1.5 text-xs text-white/70 leading-relaxed">
                   {lang === "hi"
-                    ? "अपनी मातृभाषा (हिन्दी, उर्दू या इंग्लिश) में अपनी आवश्यकताएं आसानी से बोलकर रिकॉर्ड करें।"
+                    ? "अपनी भाषा (हिन्दी, उर्दू या इंग्लिश) में अपनी आवश्यकताएं आसानी से बोलकर रिकॉर्ड करें।"
                     : "Use voice input to share your requirements easily in your native dialect."}
                 </p>
 
@@ -1701,7 +1722,7 @@ export default function Home() {
       </section>
 
       {/* =====================================================================
-          8. BEFORE → AFTER COMPARISON (Interactive Slider + Value Checklist)
+          8. BEFORE → AFTER COMPARISON
       ===================================================================== */}
       <section className="border-t border-[#e8e2d4] bg-[#fbf9f4] py-20 sm:py-24">
         <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
@@ -1714,7 +1735,7 @@ export default function Home() {
             </h2>
             <p className="mt-1 text-xs sm:text-sm text-black/60">
               {lang === "hi"
-                ? "आपके हाथ के रफ स्केच से लेकर पेशेवर आर्किटेक्चरल ब्लूप्रिंट तक"
+                ? "आपके हाथ के रफ स्केच से लेकर पेशेवर 2D ब्लूप्रिंट तक"
                 : "Your Rough Sketch to Professional Architectural Plan"}
             </p>
           </div>
@@ -1732,7 +1753,7 @@ export default function Home() {
                 <div className="absolute inset-0">
                   <img
                     src="/portfolio/house-plan-01-hd.jpg"
-                    alt="After - Sarda Homeplan Professional CAD Map"
+                    alt="After - Sarda Homeplan CAD Map"
                     className="h-full w-full object-cover"
                   />
                   <div className="absolute top-4 right-4 z-10 rounded-full bg-[#063b2c]/90 px-3.5 py-1 text-xs font-bold text-[#f4cf72] shadow-md backdrop-blur-sm">
@@ -1781,7 +1802,7 @@ export default function Home() {
               <p className="mt-3 text-center text-[11px] text-black/50">
                 ↔ {lang === "hi"
                   ? "हैंडल को ड्रैग करके रफ स्केच (Before) और फाइनल कैड (After) का अंतर देखें।"
-                  : "Drag handle to compare Client Rough Sketch (Before) vs Final CAD Plan (After)."}
+                  : "Drag handle to compare Client Rough Sketch (Before) vs Final Plan (After)."}
               </p>
             </div>
 
@@ -1821,7 +1842,7 @@ export default function Home() {
                     </h4>
                     <p className="text-xs text-black/55 mt-0.5">
                       {lang === "hi"
-                        ? "सुख, शांति और समृद्धि के लिए शुद्ध वास्तु नियमों का पालन।"
+                        ? "सुख, शांति और समृद्धि के लिए व्यावहारिक वास्तु नियमों का पालन।"
                         : "Practical Vastu alignment for peace, sunlight, and positive energy."}
                     </p>
                   </div>
@@ -1837,8 +1858,8 @@ export default function Home() {
                     </h4>
                     <p className="text-xs text-black/55 mt-0.5">
                       {lang === "hi"
-                        ? "कोई छुपा हुआ चार्ज नहीं, स्पष्ट माइलस्टोन पेमेंट सिस्टम।"
-                        : "No hidden charges, milestone-based clear pricing structure."}
+                        ? "कोई छुपा हुआ चार्ज नहीं, सीधा और स्पष्ट मूल्य।"
+                        : "No hidden charges, clear and honest pricing."}
                     </p>
                   </div>
                 </div>
@@ -1849,12 +1870,12 @@ export default function Home() {
                   </div>
                   <div>
                     <h4 className="font-bold text-sm text-[#11241c]">
-                      {lang === "hi" ? "सीधी इंजीनियर चर्चा" : "Direct Consultation"}
+                      {lang === "hi" ? "सीधी बातचीत व सहायता" : "Direct Friendly Consultation"}
                     </h4>
                     <p className="text-xs text-black/55 mt-0.5">
                       {lang === "hi"
-                        ? "सीनियर सिविल इंजीनियर और आर्किटेक्ट से सीधा संवाद।"
-                        : "Direct interaction with licensed architects and field surveyors."}
+                        ? "सीधा संपर्क और आपके हर सवाल का स्पष्ट जवाब।"
+                        : "Direct communication and prompt answers to all your planning questions."}
                     </p>
                   </div>
                 </div>
@@ -1899,7 +1920,7 @@ export default function Home() {
             {/* LEFT 6 COLS: COPY & FEATURES */}
             <div className="lg:col-span-6">
               <span className="rounded-full bg-white/10 px-3.5 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#f4cf72]">
-                {lang === "hi" ? "वेरीफाइड कस्टमर पोर्टल" : "Verified Client Dashboard"}
+                {lang === "hi" ? "कस्टमर पोर्टल" : "Client Dashboard"}
               </span>
               <h2 className="mt-3 font-serif text-3xl sm:text-4xl lg:text-[44px] font-extrabold leading-tight">
                 {lang === "hi" ? (
@@ -1918,8 +1939,8 @@ export default function Home() {
               </h2>
               <p className="mt-3 text-sm text-white/70 max-w-md leading-relaxed">
                 {lang === "hi"
-                  ? "अपने कस्टमर डैशबोर्ड में लॉगिन करके लाइव प्रोजेक्ट स्टेटस देखें, साइट विज़िट बुक करें, वॉटरमार्क वाले 2D ड्राफ्ट को रिव्यू करें, और फाइनल ब्लूप्रिंट डाउनलोड करें।"
-                  : "Login to your customer dashboard to track requirements, book & reschedule site visits, check payment receipts, review watermarked 2D maps, and download final plans."}
+                  ? "अपने कस्टमर डैशबोर्ड में लॉगिन करके लाइव प्रोजेक्ट स्टेटस देखें, साइट विज़िट बुक करें, 2D ड्राफ्ट को रिव्यू करें, और फाइनल ब्लूप्रिंट डाउनलोड करें।"
+                  : "Login to your customer dashboard to track requirements, book site visits, check payment receipts, review 2D maps, and download final plans."}
               </p>
 
               <div className="mt-6 flex flex-wrap gap-4">
@@ -2015,7 +2036,7 @@ export default function Home() {
                     <div className="flex items-center gap-2">
                       <Bell size={14} className="text-[#c18c21]" />
                       <span className="text-[11px] font-medium text-black/70">
-                        Architect uploaded revised 2D concept plan
+                        Revised 2D concept plan uploaded
                       </span>
                     </div>
                     <span className="text-[10px] font-bold text-[#063b2c]">View →</span>
@@ -2133,7 +2154,7 @@ export default function Home() {
       </section>
 
       {/* =====================================================================
-          11. PRE-FOOTER CTA BANNER (Ready to Plan Your Home?)
+          11. PRE-FOOTER CTA BANNER (Real WhatsApp & Phone)
       ===================================================================== */}
       <section className="bg-[#07382a] py-14 text-white relative overflow-hidden">
         <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
@@ -2148,8 +2169,8 @@ export default function Home() {
                 </h2>
                 <p className="mt-2 text-sm text-white/75 max-w-xl">
                   {lang === "hi"
-                    ? "आज ही अपनी आवश्यकताएं साझा करें और अपने प्लॉट के लिए पेशेवर, 100% वास्तु-सम्मत नक्शा बनवाएं।"
-                    : "Share your plot requirements today and get a certified, Vastu-compliant house map tailored to your budget."}
+                    ? "आज ही अपनी आवश्यकताएं साझा करें और अपने प्लॉट के लिए व्यावहारिक, 100% वास्तु-सम्मत नक्शा बनवाएं।"
+                    : "Share your plot requirements today and get a clean, Vastu-compliant house map tailored to your budget."}
                 </p>
 
                 <div className="mt-6 flex flex-wrap items-center gap-3.5">
@@ -2163,7 +2184,7 @@ export default function Home() {
                   </button>
 
                   <a
-                    href="https://wa.me/919576543210?text=Namaste%20Sarda%20Homeplan%20team%2C%20mujhe%20apne%20plot%20ka%20naksha%20banwana%20hai."
+                    href="https://wa.me/918423406049?text=Namaste%20Sarda%20Homeplan%20team%2C%20mujhe%20apne%20plot%20ka%20naksha%20banwana%20hai."
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-6 py-3 text-xs font-bold text-white transition hover:bg-[#25D366] hover:border-[#25D366]"
@@ -2189,7 +2210,7 @@ export default function Home() {
       </section>
 
       {/* =====================================================================
-          12. FOOTER
+          12. FOOTER (With Real Phone: 8423406049)
       ===================================================================== */}
       <footer id="contact" className="border-t border-[#e8e2d4] bg-[#fbf9f4] pt-16 pb-8 text-[#17221b]">
         <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
@@ -2216,31 +2237,20 @@ export default function Home() {
               </p>
               <div className="mt-5 flex items-center gap-3">
                 <a
-                  href="https://instagram.com"
+                  href="https://wa.me/918423406049"
                   target="_blank"
                   rel="noreferrer"
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white border border-black/10 text-black/70 hover:bg-[#063b2c] hover:text-white transition"
-                  aria-label="Instagram"
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white border border-black/10 text-black/70 hover:bg-[#25D366] hover:text-white transition"
+                  aria-label="WhatsApp"
                 >
-                  📷
+                  <MessageCircle size={15} />
                 </a>
                 <a
-                  href="https://facebook.com"
-                  target="_blank"
-                  rel="noreferrer"
+                  href="tel:+918423406049"
                   className="flex h-8 w-8 items-center justify-center rounded-full bg-white border border-black/10 text-black/70 hover:bg-[#063b2c] hover:text-white transition"
-                  aria-label="Facebook"
+                  aria-label="Phone"
                 >
-                  f
-                </a>
-                <a
-                  href="https://youtube.com"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white border border-black/10 text-black/70 hover:bg-[#063b2c] hover:text-white transition"
-                  aria-label="YouTube"
-                >
-                  ▶
+                  <Phone size={15} />
                 </a>
               </div>
             </div>
@@ -2274,7 +2284,7 @@ export default function Home() {
               </ul>
             </div>
 
-            {/* Col 4: Contact Us */}
+            {/* Col 4: Contact Us (REAL NUMBER) */}
             <div>
               <h4 className="text-xs font-bold uppercase tracking-widest text-[#063b2c]">
                 Contact Us
@@ -2282,7 +2292,11 @@ export default function Home() {
               <ul className="mt-4 space-y-2.5 text-xs text-black/65">
                 <li className="flex items-center gap-2">
                   <Phone size={13} className="text-[#0c7a62]" />
-                  <a href="tel:+919576543210" className="hover:text-[#063b2c]">+91 95765 43210</a>
+                  <a href="tel:+918423406049" className="hover:text-[#063b2c] font-bold">+91 8423406049</a>
+                </li>
+                <li className="flex items-center gap-2">
+                  <MessageCircle size={13} className="text-[#0c7a62]" />
+                  <a href="https://wa.me/918423406049" target="_blank" rel="noreferrer" className="hover:text-[#063b2c]">+91 8423406049 (WhatsApp)</a>
                 </li>
                 <li className="flex items-center gap-2">
                   <Mail size={13} className="text-[#0c7a62]" />
@@ -2307,107 +2321,7 @@ export default function Home() {
       </footer>
 
       {/* =====================================================================
-          13. LOGIN ROLE SELECTION MODAL (Customer vs Admin)
-      ===================================================================== */}
-      {loginRoleModalOpen && (
-        <div
-          className="fixed inset-0 z-[160] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-          onClick={() => setLoginRoleModalOpen(false)}
-        >
-          <div
-            className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between border-b border-[#f0ebdf] pb-3">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#9b7732]">
-                  SARDA HOMEPLAN PORTAL
-                </span>
-                <h3 className="font-serif text-xl font-bold text-[#11241c]">
-                  {lang === "hi" ? "लॉगिन पोर्टल चुनें" : "Select Your Login Portal"}
-                </h3>
-                <p className="text-xs text-black/55 mt-0.5">
-                  {lang === "hi"
-                    ? "आगे बढ़ने के लिए अपना संबंधित खाता चुनें"
-                    : "Choose how you would like to sign in today"}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setLoginRoleModalOpen(false)}
-                className="text-black/50 hover:text-black font-bold text-xl"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="mt-5 space-y-3.5">
-              {/* 1. CUSTOMER PORTAL CARD */}
-              <Link
-                href="/customer/login"
-                onClick={() => setLoginRoleModalOpen(false)}
-                className="group flex items-start gap-3.5 rounded-2xl border-2 border-[#e4ddcc] bg-[#faf8f4] p-4 transition hover:border-[#063b2c] hover:bg-white hover:shadow-md"
-              >
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#063b2c] text-[#f4cf72] shadow-sm transition group-hover:scale-105">
-                  <User size={22} />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-sm text-[#11241c] group-hover:text-[#063b2c]">
-                      {lang === "hi" ? "ग्राहक लॉगिन (Customer Portal)" : "Customer Portal"}
-                    </h4>
-                    <ArrowRight size={14} className="text-black/40 group-hover:text-[#063b2c]" />
-                  </div>
-                  <p className="mt-1 text-xs text-black/60 leading-relaxed">
-                    {lang === "hi"
-                      ? "प्लॉट मालिक • लाइव नक्शा प्रगति, 2D ड्राफ्ट रिव्यू, साइट विज़िट और फाइनल फाइल डाउनलोड।"
-                      : "For Plot Owners • Track your map, approve 2D drafts, request changes & download blueprints."}
-                  </p>
-                </div>
-              </Link>
-
-              {/* 2. ADMIN PORTAL CARD */}
-              <Link
-                href="/admin/login"
-                onClick={() => setLoginRoleModalOpen(false)}
-                className="group flex items-start gap-3.5 rounded-2xl border-2 border-[#e4ddcc] bg-[#faf8f4] p-4 transition hover:border-[#063b2c] hover:bg-white hover:shadow-md"
-              >
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#11241c] text-[#f4cf72] shadow-sm transition group-hover:scale-105">
-                  <ShieldCheck size={22} />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-sm text-[#11241c] group-hover:text-[#063b2c]">
-                      {lang === "hi" ? "व्यवस्थापक / इंजीनियर (Admin Portal)" : "Admin & Staff Portal"}
-                    </h4>
-                    <ArrowRight size={14} className="text-black/40 group-hover:text-[#063b2c]" />
-                  </div>
-                  <p className="mt-1 text-xs text-black/60 leading-relaxed">
-                    {lang === "hi"
-                      ? "इंजीनियर्स व ऑफिस टीम • ग्राहक रिक्वेस्ट, साइट विज़िट सत्यापन और कैड फाइल अपलोड।"
-                      : "For Architects & Field Staff • Manage requests, schedule visits & upload certified CAD maps."}
-                  </p>
-                </div>
-              </Link>
-            </div>
-
-            {/* Bottom Registration Hint */}
-            <div className="mt-5 pt-3 border-t border-[#f0ebdf] text-center text-xs text-black/60">
-              <span>{lang === "hi" ? "नए ग्राहक हैं?" : "New to Sarda Homeplan?"} </span>
-              <Link
-                href="/customer/signup"
-                onClick={() => setLoginRoleModalOpen(false)}
-                className="font-bold text-[#063b2c] hover:underline"
-              >
-                {lang === "hi" ? "नया खाता बनाएं (Register)" : "Create Customer Account"}
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* =====================================================================
-          14. AUTH PROMPT GATEWAY MODAL ("Account Required to Submit")
+          13. AUTH PROMPT GATEWAY MODAL ("Account Required to Submit")
       ===================================================================== */}
       {authPromptModalOpen && (
         <div
@@ -2451,15 +2365,15 @@ export default function Home() {
                   <span>
                     {lang === "hi"
                       ? "अपने नक्शे की लाइव ड्राफ्टिंग प्रगति देख सकेंगे।"
-                      : "Track your architectural drafting progress live in real-time."}
+                      : "Track your house plan drafting progress live in real-time."}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-[#0c7a62] font-bold">✓</span>
                   <span>
                     {lang === "hi"
-                      ? "इंजीनियर की साइट विज़िट तिथि बुक व रीशेड्यूल कर सकेंगे।"
-                      : "Book, confirm, and reschedule engineer site visits."}
+                      ? "प्लॉट साइट विज़िट तिथि बुक व रीशेड्यूल कर सकेंगे।"
+                      : "Book, confirm, and reschedule plot site visits."}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -2474,8 +2388,8 @@ export default function Home() {
                   <span className="text-[#0c7a62] font-bold">✓</span>
                   <span>
                     {lang === "hi"
-                      ? "फाइनल हाई-रेजोल्यूशन ब्लूप्रिंट व पेमेंट रसीदें डाउनलोड कर सकेंगे।"
-                      : "Download final unwatermarked CAD blueprints and verified receipts."}
+                      ? "फाइनल ब्लूप्रिंट व पेमेंट रसीदें डाउनलोड कर सकेंगे।"
+                      : "Download final house maps and verified payment receipts."}
                   </span>
                 </div>
               </div>
@@ -2502,7 +2416,7 @@ export default function Home() {
 
               <div className="mt-4 pt-3 border-t border-[#f0ebdf] text-center">
                 <a
-                  href="https://wa.me/919576543210?text=Namaste%20Sarda%20Homeplan%2C%20mujhe%20apne%20plot%20ke%20naksha%20ke%20baare%20me%20jaankari%20chahiye."
+                  href="https://wa.me/918423406049?text=Namaste%20Sarda%20Homeplan%2C%20mujhe%20apne%20plot%20ke%20naksha%20ke%20baare%20me%20jaankari%20chahiye."
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0c7a62] hover:underline"
@@ -2510,8 +2424,8 @@ export default function Home() {
                   <MessageCircle size={14} />
                   <span>
                     {lang === "hi"
-                      ? "या बिना लॉगिन सीधे व्हाट्सएप पर बात करें"
-                      : "Or chat directly with engineer on WhatsApp"}
+                      ? "या सीधे व्हाट्सएप (+91 8423406049) पर बात करें"
+                      : "Or chat directly on WhatsApp (+91 8423406049)"}
                   </span>
                 </a>
               </div>
@@ -2521,7 +2435,7 @@ export default function Home() {
       )}
 
       {/* =====================================================================
-          15. QUICK INQUIRY / REQUIREMENT MODAL (For Authenticated Users)
+          14. QUICK INQUIRY / REQUIREMENT MODAL (For Authenticated Users)
       ===================================================================== */}
       {quickInquiryOpen && (
         <div
@@ -2542,8 +2456,8 @@ export default function Home() {
                 </h3>
                 <p className="mt-1 text-xs text-black/55">
                   {lang === "hi"
-                    ? "अपनी आवश्यकताएं भरें और हमारे आर्किटेक्ट आपका कस्टमाइज़्ड प्लान तैयार करेंगे।"
-                    : "Share your requirements and our architects will prepare your customized plan."}
+                    ? "अपनी आवश्यकताएं भरें और हम आपका कस्टमाइज़्ड प्लान तैयार करेंगे।"
+                    : "Share your requirements and we will prepare your customized plan."}
                 </p>
               </div>
               <button
@@ -2564,7 +2478,7 @@ export default function Home() {
                   Requirement Received!
                 </h4>
                 <p className="text-xs text-black/65 max-w-sm mx-auto leading-relaxed">
-                  Namaste {fullName}! Aapki requirement record ho chuki hai. Hamari architect team aapse jald hi call ya WhatsApp par contact karegi.
+                  Namaste {fullName}! Aapki requirement record ho chuki hai. Hamari team aapse jald hi call ya WhatsApp par contact karegi.
                 </p>
                 <div className="pt-2 flex flex-col gap-2 sm:flex-row justify-center">
                   <Link
@@ -2616,7 +2530,7 @@ export default function Home() {
                       type="tel"
                       value={mobile}
                       onChange={(e) => setMobile(e.target.value)}
-                      placeholder="e.g. 9876543210"
+                      placeholder="e.g. 8423406049"
                       className="mt-1 w-full rounded-xl border border-black/15 bg-[#faf8f4] px-3.5 py-2 text-xs outline-none focus:border-[#063b2c] focus:bg-white"
                       required
                     />
@@ -2738,7 +2652,7 @@ export default function Home() {
       )}
 
       {/* =====================================================================
-          16. FULLSCREEN BLUEPRINT PREVIEW MODAL WITH SECURE WATERMARK
+          15. FULLSCREEN BLUEPRINT PREVIEW MODAL
       ===================================================================== */}
       {activePlanModal && (
         <div
@@ -2774,7 +2688,7 @@ export default function Home() {
                     SARDA HOMEPLAN
                   </p>
                   <p className="text-[9px] font-medium tracking-wide text-[#f4cf72]">
-                    Certified Architectural Drawing
+                    Custom Design
                   </p>
                 </div>
               </div>
@@ -2800,7 +2714,7 @@ export default function Home() {
               </button>
 
               <a
-                href={`https://wa.me/919576543210?text=${encodeURIComponent(
+                href={`https://wa.me/918423406049?text=${encodeURIComponent(
                   `Namaste Sarda Homeplan team! Mujhe aapke featured plan '${activePlanModal.title}' (${activePlanModal.dimensions}) ke baare me baat karni hai.`
                 )}`}
                 target="_blank"
@@ -2816,7 +2730,7 @@ export default function Home() {
       )}
 
       {/* =====================================================================
-          17. SERVICE DETAIL MODAL ("Know More →")
+          16. SERVICE DETAIL MODAL ("Know More →")
       ===================================================================== */}
       {activeServiceModal && (
         <div
@@ -2888,7 +2802,7 @@ export default function Home() {
       )}
 
       {/* =====================================================================
-          18. QUICK SEARCH MODAL
+          17. QUICK SEARCH MODAL
       ===================================================================== */}
       {searchModalOpen && (
         <div
@@ -2984,15 +2898,15 @@ export default function Home() {
       )}
 
       {/* =====================================================================
-          19. FLOATING WHATSAPP CHAT BUTTON (Bottom-Right)
+          18. FLOATING WHATSAPP CHAT BUTTON (REAL NUMBER: 8423406049)
       ===================================================================== */}
       <a
-        href="https://wa.me/919576543210?text=Namaste%20Sarda%20Homeplan%2C%20mujhe%20ghar%20ka%20naksha%20banwana%20hai."
+        href="https://wa.me/918423406049?text=Namaste%20Sarda%20Homeplan%2C%20mujhe%20ghar%20ka%20naksha%20banwana%20hai."
         target="_blank"
         rel="noreferrer"
         className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-2xl transition hover:scale-110 hover:shadow-[0_10px_25px_rgba(37,211,102,0.4)]"
         aria-label="Direct WhatsApp Chat"
-        title="Chat on WhatsApp (+91 95765 43210)"
+        title="Chat on WhatsApp (+91 8423406049)"
       >
         <MessageCircle size={28} />
       </a>
