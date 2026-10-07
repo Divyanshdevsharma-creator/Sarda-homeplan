@@ -205,13 +205,13 @@ export default function CustomerSignupPage() {
       </header>
 
       {/* ================= MAIN CARD ================= */}
-      <section className="mx-auto h-[calc(100vh-82px)] w-[calc(100%-24px)] max-w-[1550px] overflow-hidden rounded-[28px] border border-[#dfd5c5] bg-[#f8f4eb] shadow-[0_20px_60px_rgba(48,39,25,0.10)] sm:w-[calc(100%-32px)]">
+      <section className="mx-auto min-h-[calc(100vh-82px)] h-auto lg:h-[calc(100vh-82px)] w-[calc(100%-24px)] max-w-[1550px] overflow-y-auto lg:overflow-hidden rounded-[28px] border border-[#dfd5c5] bg-[#f8f4eb] shadow-[0_20px_60px_rgba(48,39,25,0.10)] sm:w-[calc(100%-32px)]">
         <div className="grid h-full min-h-0 grid-cols-1 lg:grid-cols-[0.98fr_1.02fr]">
           {/* ===================================================== */}
           {/* LEFT SIDE */}
           {/* ===================================================== */}
 
-          <div className="flex min-h-0 flex-col px-5 py-3 sm:px-6 lg:px-7 lg:py-3">
+          <div className="flex min-h-0 flex-col px-4 py-4 sm:px-6 lg:px-7 lg:py-3">
             {/* BADGE */}
             <div className="mb-1.5 shrink-0">
               <span className="inline-flex rounded-full bg-[#f0dfae] px-4 py-1.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-[#8b6116]">
@@ -221,7 +221,7 @@ export default function CustomerSignupPage() {
 
             {/* TITLE */}
             <div className="mb-2.5 shrink-0">
-              <h1 className="font-serif text-[30px] font-bold leading-[0.95] text-[#123f31] xl:text-[35px]">
+              <h1 className="font-serif text-[26px] sm:text-[30px] font-bold leading-[1.05] sm:leading-[0.95] text-[#123f31] xl:text-[35px]">
                 Create Your{" "}
                 <span className="text-[#b47b1b]">Account</span>
               </h1>
@@ -234,7 +234,7 @@ export default function CustomerSignupPage() {
             {/* ================= FORM ================= */}
             <form
               onSubmit={handleSignup}
-              className="flex min-h-0 flex-1 flex-col overflow-hidden pb-1"
+              className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:overflow-hidden pb-4 lg:pb-1"
             >
               {/* PERSONAL INFORMATION */}
               <div className="shrink-0 rounded-[20px] border border-[#dfd5c5] bg-white/80 px-4 py-2.5">

@@ -361,14 +361,14 @@ export default function CustomerLoginPage() {
   };
 
   return (
-    <main className="h-[100dvh] overflow-hidden bg-[#f8f5ed] text-[#17221b]">
-      <div className="grid h-full min-h-0 lg:grid-cols-2">
+    <main className="min-h-screen overflow-y-auto lg:h-[100dvh] lg:overflow-hidden bg-[#f8f5ed] text-[#17221b]">
+      <div className="grid min-h-screen lg:h-full min-h-0 lg:grid-cols-2">
 
         {/* =====================================================
             LEFT — LOGIN
         ===================================================== */}
 
-        <section className="relative flex h-full min-h-0 items-center justify-center overflow-hidden bg-[#fbfaf6] px-4 py-4 sm:px-8 lg:px-10">
+        <section className="relative flex min-h-screen lg:min-h-0 lg:h-full items-center justify-center overflow-y-auto lg:overflow-hidden bg-[#fbfaf6] px-4 py-8 sm:px-8 lg:px-10">
 
           {/* Decorative architecture */}
           <div className="pointer-events-none absolute left-0 top-[210px] opacity-[0.055]">

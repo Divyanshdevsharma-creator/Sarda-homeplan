@@ -595,7 +595,7 @@ export default function AdminDashboard() {
       title: `Project Status: ${newStatus}`,
       message: `Aapke house-planning project ka status update hokar '${newStatus}' ho gaya hai.`,
       actionTab: "project",
-      whatsappMessage: `Namaste ${selectedRequest.full_name} ji! Sarda Homeplan me aapke plot project ka status update hokar '${newStatus}' ho gaya hai. Kripya customer dashboard me progress check karein: https://sardahomeplan.com/customer/dashboard`,
+      whatsappMessage: `Namaste ${selectedRequest.full_name} ji! Sarda Homeplan me aapke plot project ka status update hokar '${newStatus}' ho gaya hai. Kripya customer dashboard me progress check karein: ${typeof window !== "undefined" ? window.location.origin : ""}/customer/dashboard`,
     });
   };
 
@@ -713,7 +713,7 @@ export default function AdminDashboard() {
       title: `Site Visit Proposed: ${visitDate} at ${visitTime}`,
       message: `Architect ne ${visitDate} ko ${visitTime} baje site visit propose kiya hai.`,
       actionTab: "visit",
-      whatsappMessage: `Namaste ${selectedRequest.full_name} ji! Sarda Homeplan se humne aapka Site Visit ${visitDate} ko ${visitTime} baje schedule kiya hai. Kripya apne customer dashboard me review karke confirm karein ya naya samay batayein: https://sardahomeplan.com/customer/dashboard`,
+      whatsappMessage: `Namaste ${selectedRequest.full_name} ji! Sarda Homeplan se humne aapka Site Visit ${visitDate} ko ${visitTime} baje schedule kiya hai. Kripya apne customer dashboard me review karke confirm karein ya naya samay batayein: ${typeof window !== "undefined" ? window.location.origin : ""}/customer/dashboard`,
     });
   };
 
@@ -807,7 +807,7 @@ export default function AdminDashboard() {
         title: `New Site Visit Slot Proposed: ${date} at ${time}`,
         message: `Architect ne aapke reschedule request par naya samay propose kiya: ${date} at ${time}.`,
         actionTab: "visit",
-        whatsappMessage: `Namaste ${targetReqForAlert?.full_name} ji! Sarda Homeplan se humne aapke reschedule request par naya slot ${date} ko ${time} baje propose kiya hai. Kripya apne dashboard me review karein: https://sardahomeplan.com/customer/dashboard`,
+        whatsappMessage: `Namaste ${targetReqForAlert?.full_name} ji! Sarda Homeplan se humne aapke reschedule request par naya slot ${date} ko ${time} baje propose kiya hai. Kripya apne dashboard me review karein: ${typeof window !== "undefined" ? window.location.origin : ""}/customer/dashboard`,
       });
     }
   };
@@ -1009,7 +1009,7 @@ export default function AdminDashboard() {
       title: `${deliverableTypeName} Uploaded`,
       message: `${title} architect dwara upload ho gaya hai. Abhi check karein!`,
       actionTab: "plans",
-      whatsappMessage: `Namaste ${targetReq?.full_name} ji! Sarda Homeplan ke architect ne aapke plot ka ${deliverableTypeName} (${title}) upload kar diya hai. Kripya customer dashboard me login karke review karein: https://sardahomeplan.com/customer/dashboard`,
+      whatsappMessage: `Namaste ${targetReq?.full_name} ji! Sarda Homeplan ke architect ne aapke plot ka ${deliverableTypeName} (${title}) upload kar diya hai. Kripya customer dashboard me login karke review karein: ${typeof window !== "undefined" ? window.location.origin : ""}/customer/dashboard`,
     });
   };
 

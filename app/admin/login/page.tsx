@@ -148,7 +148,7 @@ export default function AdminLoginPage() {
             LEFT PANEL — 60%
         ====================================================== */}
 
-        <section className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-[1.5rem] bg-[#faf8f1] px-5 py-8 sm:px-8 lg:w-[60%] lg:px-10 xl:px-14">
+        <section className="relative flex h-full w-full items-center justify-center overflow-y-auto lg:overflow-hidden rounded-[1.5rem] bg-[#faf8f1] px-4 py-8 sm:px-8 lg:w-[60%] lg:px-10 xl:px-14">
 
           {/* Subtle architectural line art */}
 

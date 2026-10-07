@@ -459,6 +459,17 @@ export default function Home() {
     checkAuth();
   }, []);
 
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileMenuOpen]);
+
   const handleLanguageChange = (newLang: Language) => {
     setLang(newLang);
     localStorage.setItem("sarda_user_lang", newLang);
@@ -578,6 +589,7 @@ export default function Home() {
           vastu_consultation: vastuConsultation,
           status: "New Request",
           customer_user_id: user?.id || null,
+          user_id: user?.id || null,
         })
         .select()
         .single();
@@ -675,9 +687,9 @@ export default function Home() {
           </nav>
 
           {/* RIGHT ACTIONS */}
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            {/* LANGUAGE SELECTOR PILL */}
-            <div className="flex items-center rounded-full border border-black/10 bg-white/80 p-0.5 shadow-sm">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* LANGUAGE SELECTOR PILL - Hidden on mobile, shown on tablet/desktop */}
+            <div className="hidden sm:flex items-center rounded-full border border-black/10 bg-white/80 p-0.5 shadow-sm">
               <button
                 type="button"
                 onClick={() => handleLanguageChange("hi")}
@@ -731,14 +743,14 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setLoginRoleModalOpen(true)}
-              className="flex items-center gap-1.5 rounded-full border border-black/15 bg-white/80 px-4 py-2 text-xs font-bold text-[#17221b] shadow-sm transition hover:bg-white hover:border-[#063b2c]"
+              className="flex items-center gap-1.5 rounded-full border border-black/15 bg-white/80 px-3 sm:px-4 py-2 text-xs font-bold text-[#17221b] shadow-sm transition hover:bg-white hover:border-[#063b2c]"
             >
               <LogIn size={13} className="text-[#063b2c]" />
               <span>
                 {currentUser
                   ? lang === "hi"
-                    ? "खाता / लॉगिन"
-                    : "Account / Login"
+                    ? "खाता"
+                    : "Account"
                   : lang === "hi"
                   ? "लॉगिन"
                   : "Login"}
@@ -759,7 +771,7 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-black/10 bg-white text-black/80 md:hidden"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-black/10 bg-white text-black/80 md:hidden"
               aria-label="Toggle menu"
             >
               {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
@@ -913,7 +925,7 @@ export default function Home() {
               </div>
 
               {/* Main Headline */}
-              <h1 className="font-serif text-4xl font-extrabold leading-[1.14] tracking-tight text-[#11241c] sm:text-5xl lg:text-[54px] xl:text-[58px]">
+              <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl lg:text-[54px] xl:text-[58px] font-extrabold leading-[1.16] tracking-tight text-[#11241c]">
                 {lang === "hi" ? (
                   <>
                     अपने घर का सपना,
@@ -936,7 +948,7 @@ export default function Home() {
               </h1>
 
               {/* Subtitle */}
-              <p className="mt-5 max-w-xl text-base leading-relaxed text-black/65 sm:text-lg">
+              <p className="mt-4 sm:mt-5 max-w-xl text-sm sm:text-base leading-relaxed text-black/65 sm:text-lg">
                 {lang === "hi"
                   ? "आपके रफ स्केच से लेकर सुंदर हाउस मैप तक — "
                   : lang === "en"
@@ -952,12 +964,12 @@ export default function Home() {
                   : "aur aapki zarurat ke hisaab se."}
               </p>
 
-              {/* Dual CTAs */}
-              <div className="mt-7 flex flex-wrap items-center gap-3.5">
+              {/* Dual CTAs - Intelligently stacked on mobile, row on tablet/desktop */}
+              <div className="mt-6 sm:mt-7 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-3.5">
                 <button
                   type="button"
                   onClick={() => handleGetMapClick()}
-                  className="flex items-center gap-2 rounded-full bg-[#063b2c] px-7 py-3.5 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-[#0b4d3a] hover:shadow-xl"
+                  className="flex items-center justify-center gap-2 rounded-full bg-[#063b2c] px-6 sm:px-7 py-3.5 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-[#0b4d3a] hover:shadow-xl w-full sm:w-auto"
                 >
                   <span>
                     {lang === "hi"
@@ -971,7 +983,7 @@ export default function Home() {
 
                 <a
                   href="#portfolio"
-                  className="flex items-center gap-2 rounded-full border border-black/15 bg-white/80 px-6 py-3.5 text-sm font-bold text-[#17221b] shadow-sm transition hover:-translate-y-0.5 hover:bg-white hover:border-[#063b2c]"
+                  className="flex items-center justify-center gap-2 rounded-full border border-black/15 bg-white/80 px-5 sm:px-6 py-3.5 text-sm font-bold text-[#17221b] shadow-sm transition hover:-translate-y-0.5 hover:bg-white hover:border-[#063b2c] w-full sm:w-auto"
                 >
                   <span>
                     {lang === "hi"
@@ -987,50 +999,50 @@ export default function Home() {
               </div>
 
               {/* 4 Bottom Trust Pillars */}
-              <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4 pt-6 border-t border-[#e8e2d4]">
-                <div className="flex items-center gap-2 rounded-xl bg-white/80 p-2.5 border border-[#ede5d5] shadow-sm">
+              <div className="mt-8 sm:mt-10 grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-4 pt-5 sm:pt-6 border-t border-[#e8e2d4]">
+                <div className="flex items-center gap-2 rounded-xl bg-white/80 p-2 sm:p-2.5 border border-[#ede5d5] shadow-sm">
                   <Ruler size={16} className="text-[#c18c21] shrink-0" />
-                  <div className="text-[11px] leading-tight">
-                    <strong className="block text-[#17221b]">
+                  <div className="text-[10px] sm:text-[11px] leading-tight min-w-0">
+                    <strong className="block text-[#17221b] truncate">
                       {lang === "hi" ? "कस्टम प्लानिंग" : "Custom Planning"}
                     </strong>
-                    <span className="text-black/50 text-[10px]">
+                    <span className="text-black/50 text-[9px] sm:text-[10px] truncate block">
                       {lang === "hi" ? "आपकी ज़रूरत अनुसार" : "as per your needs"}
                     </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 rounded-xl bg-white/80 p-2.5 border border-[#ede5d5] shadow-sm">
+                <div className="flex items-center gap-2 rounded-xl bg-white/80 p-2 sm:p-2.5 border border-[#ede5d5] shadow-sm">
                   <Building2 size={16} className="text-[#c18c21] shrink-0" />
-                  <div className="text-[11px] leading-tight">
-                    <strong className="block text-[#17221b]">
+                  <div className="text-[10px] sm:text-[11px] leading-tight min-w-0">
+                    <strong className="block text-[#17221b] truncate">
                       {lang === "hi" ? "व्यक्तिगत सलाह" : "Personal Consult"}
                     </strong>
-                    <span className="text-black/50 text-[10px]">
+                    <span className="text-black/50 text-[9px] sm:text-[10px] truncate block">
                       {lang === "hi" ? "ऑनलाइन व ऑन-साइट" : "Online & On-site"}
                     </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 rounded-xl bg-white/80 p-2.5 border border-[#ede5d5] shadow-sm">
+                <div className="flex items-center gap-2 rounded-xl bg-white/80 p-2 sm:p-2.5 border border-[#ede5d5] shadow-sm">
                   <Sparkles size={16} className="text-[#c18c21] shrink-0" />
-                  <div className="text-[11px] leading-tight">
-                    <strong className="block text-[#17221b]">
+                  <div className="text-[10px] sm:text-[11px] leading-tight min-w-0">
+                    <strong className="block text-[#17221b] truncate">
                       Hindi • Urdu • Eng
                     </strong>
-                    <span className="text-black/50 text-[10px]">
+                    <span className="text-black/50 text-[9px] sm:text-[10px] truncate block">
                       {lang === "hi" ? "सीधा सहयोग" : "Direct Support"}
                     </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 rounded-xl bg-white/80 p-2.5 border border-[#ede5d5] shadow-sm">
+                <div className="flex items-center gap-2 rounded-xl bg-white/80 p-2 sm:p-2.5 border border-[#ede5d5] shadow-sm">
                   <MapPin size={16} className="text-[#c18c21] shrink-0" />
-                  <div className="text-[11px] leading-tight">
-                    <strong className="block text-[#17221b]">
+                  <div className="text-[10px] sm:text-[11px] leading-tight min-w-0">
+                    <strong className="block text-[#17221b] truncate">
                       {lang === "hi" ? "विश्वसनीय टीम" : "Trusted Local"}
                     </strong>
-                    <span className="text-black/50 text-[10px]">
+                    <span className="text-black/50 text-[9px] sm:text-[10px] truncate block">
                       Pratapgarh & Nearby
                     </span>
                   </div>
@@ -1049,8 +1061,8 @@ export default function Home() {
                 </div>
 
                 {/* Main Visual Frame */}
-                <div className="relative overflow-hidden rounded-[2.2rem] border-2 border-white bg-gradient-to-b from-[#e5dac5] to-[#f4f0e6] p-2.5 shadow-[0_25px_60px_rgba(20,35,27,0.18)]">
-                  <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[1.8rem] bg-[#0c2a20]">
+                <div className="relative overflow-hidden rounded-[2rem] sm:rounded-[2.2rem] border-2 border-white bg-gradient-to-b from-[#e5dac5] to-[#f4f0e6] p-2 sm:p-2.5 shadow-[0_25px_60px_rgba(20,35,27,0.18)]">
+                  <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[1.6rem] sm:rounded-[1.8rem] bg-[#0c2a20]">
                     <img
                       src="/home.png"
                       alt="Modern House Elevation by Sarda Homeplan"
@@ -1061,15 +1073,15 @@ export default function Home() {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
 
                     {/* Honest Badge */}
-                    <div className="absolute bottom-3.5 left-3.5 flex items-center gap-2 rounded-xl bg-black/75 px-3 py-1.5 backdrop-blur-md border border-white/20 text-white shadow-lg">
-                      <ShieldCheck size={16} className="text-[#f4cf72]" />
-                      <span className="text-[11px] font-bold">100% Vastu Friendly & Custom Designs</span>
+                    <div className="absolute bottom-3 left-3 sm:bottom-3.5 sm:left-3.5 flex items-center gap-1.5 sm:gap-2 rounded-xl bg-black/75 px-2.5 sm:px-3 py-1.5 backdrop-blur-md border border-white/20 text-white shadow-lg max-w-[calc(100%-24px)]">
+                      <ShieldCheck size={15} className="text-[#f4cf72] shrink-0" />
+                      <span className="text-[10px] sm:text-[11px] font-bold truncate">100% Vastu Friendly & Custom Designs</span>
                     </div>
                   </div>
                 </div>
 
-                {/* 4 Floating Badges */}
-                <div className="absolute -bottom-6 -right-2 z-20 flex flex-col gap-2 rounded-2xl border border-white/80 bg-white/95 p-3.5 shadow-xl backdrop-blur-md text-xs sm:-right-4">
+                {/* 4 Floating Badges - Clean on mobile, floating on tablet/desktop */}
+                <div className="mt-3 sm:mt-0 sm:absolute sm:-bottom-6 sm:-right-4 z-20 flex flex-col gap-2 rounded-2xl border border-white/80 bg-white/95 p-3 sm:p-3.5 shadow-md sm:shadow-xl backdrop-blur-md text-xs">
                   <div className="flex items-center gap-2 font-bold text-[#17221b]">
                     <div className="flex h-5 w-5 items-center justify-center rounded bg-[#eef8f4] text-[#0c7a62]">
                       ✓
@@ -1104,61 +1116,61 @@ export default function Home() {
       {/* =====================================================================
           3. STATS COUNTER RIBBON
       ===================================================================== */}
-      <section className="border-y border-[#e8e2d4] bg-[#fbf9f4] py-8">
-        <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
-          <div className="grid grid-cols-2 gap-6 sm:grid-cols-4 text-center">
-            <div className="flex items-center justify-center gap-3.5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#063b2c] text-[#f4cf72] shadow-sm">
-                <FileText size={22} />
+      <section className="border-y border-[#e8e2d4] bg-[#fbf9f4] py-6 sm:py-8">
+        <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-10">
+          <div className="grid grid-cols-2 gap-3 sm:gap-6 sm:grid-cols-4 text-center">
+            <div className="flex items-center justify-start sm:justify-center gap-2.5 sm:gap-3.5 rounded-xl bg-white/60 p-2.5 sm:bg-transparent sm:p-0">
+              <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-[#063b2c] text-[#f4cf72] shadow-sm">
+                <FileText size={18} className="sm:w-[22px] sm:h-[22px]" />
               </div>
-              <div className="text-left">
-                <span className="font-serif text-2xl sm:text-3xl font-extrabold text-[#11241c]">
+              <div className="text-left min-w-0">
+                <span className="font-serif text-xl sm:text-2xl lg:text-3xl font-extrabold text-[#11241c] block">
                   100+
                 </span>
-                <p className="text-[11px] font-semibold tracking-wide text-black/55 uppercase">
+                <p className="text-[10px] sm:text-[11px] font-semibold tracking-wide text-black/55 uppercase truncate">
                   {lang === "hi" ? "पूर्ण नक्शे" : "Completed Maps"}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center justify-center gap-3.5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#063b2c] text-[#f4cf72] shadow-sm">
-                <User size={22} />
+            <div className="flex items-center justify-start sm:justify-center gap-2.5 sm:gap-3.5 rounded-xl bg-white/60 p-2.5 sm:bg-transparent sm:p-0">
+              <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-[#063b2c] text-[#f4cf72] shadow-sm">
+                <User size={18} className="sm:w-[22px] sm:h-[22px]" />
               </div>
-              <div className="text-left">
-                <span className="font-serif text-2xl sm:text-3xl font-extrabold text-[#11241c]">
+              <div className="text-left min-w-0">
+                <span className="font-serif text-xl sm:text-2xl lg:text-3xl font-extrabold text-[#11241c] block">
                   500+
                 </span>
-                <p className="text-[11px] font-semibold tracking-wide text-black/55 uppercase">
+                <p className="text-[10px] sm:text-[11px] font-semibold tracking-wide text-black/55 uppercase truncate">
                   {lang === "hi" ? "संतुष्ट परिवार" : "Happy Families"}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center justify-center gap-3.5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#063b2c] text-[#f4cf72] shadow-sm">
-                <Clock size={22} />
+            <div className="flex items-center justify-start sm:justify-center gap-2.5 sm:gap-3.5 rounded-xl bg-white/60 p-2.5 sm:bg-transparent sm:p-0">
+              <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-[#063b2c] text-[#f4cf72] shadow-sm">
+                <Clock size={18} className="sm:w-[22px] sm:h-[22px]" />
               </div>
-              <div className="text-left">
-                <span className="font-serif text-2xl sm:text-3xl font-extrabold text-[#11241c]">
+              <div className="text-left min-w-0">
+                <span className="font-serif text-xl sm:text-2xl lg:text-3xl font-extrabold text-[#11241c] block">
                   5+
                 </span>
-                <p className="text-[11px] font-semibold tracking-wide text-black/55 uppercase">
+                <p className="text-[10px] sm:text-[11px] font-semibold tracking-wide text-black/55 uppercase truncate">
                   {lang === "hi" ? "वर्षों का अनुभव" : "Years Experience"}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center justify-center gap-3.5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#063b2c] text-[#f4cf72] shadow-sm">
-                <MapPin size={22} />
+            <div className="flex items-center justify-start sm:justify-center gap-2.5 sm:gap-3.5 rounded-xl bg-white/60 p-2.5 sm:bg-transparent sm:p-0">
+              <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-[#063b2c] text-[#f4cf72] shadow-sm">
+                <MapPin size={18} className="sm:w-[22px] sm:h-[22px]" />
               </div>
-              <div className="text-left">
-                <span className="font-serif text-lg sm:text-xl font-extrabold text-[#11241c] leading-tight">
+              <div className="text-left min-w-0">
+                <span className="font-serif text-base sm:text-lg lg:text-xl font-extrabold text-[#11241c] leading-tight block truncate">
                   Pratapgarh & Nearby
                 </span>
-                <p className="text-[11px] font-semibold tracking-wide text-black/55 uppercase">
-                  {lang === "hi" ? "कार्य क्षेत्र" : "Service Area"}
+                <p className="text-[10px] sm:text-[11px] font-semibold tracking-wide text-black/55 uppercase truncate">
+                  {lang === "hi" ? "सेवा क्षेत्र" : "Service Area"}
                 </p>
               </div>
             </div>
@@ -1351,7 +1363,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 max-w-full">
               <button
                 type="button"
                 onClick={() => setPortfolioFilter("all")}
@@ -1474,13 +1486,13 @@ export default function Home() {
           </div>
 
           {/* 5-Phase Interactive Step Stepper Ribbon */}
-          <div className="mt-10 grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <div className="mt-8 sm:mt-10 flex sm:grid sm:grid-cols-5 gap-2 overflow-x-auto no-scrollbar pb-1">
             {PROCESS_PHASES.map((phase, idx) => (
               <button
                 key={phase.step}
                 type="button"
                 onClick={() => setSelectedProcessPhase(idx)}
-                className={`flex flex-col items-center rounded-2xl border p-3 text-center transition ${
+                className={`flex shrink-0 sm:shrink flex-col items-center rounded-2xl border p-2.5 sm:p-3 text-center transition min-w-[125px] sm:min-w-0 ${
                   selectedProcessPhase === idx
                     ? "border-[#063b2c] bg-[#063b2c] text-white shadow-lg"
                     : "border-[#e4ddcc] bg-white text-black/80 hover:bg-[#faf7f0]"
@@ -2048,8 +2060,8 @@ export default function Home() {
                     <div className="h-2.5 w-2.5 rounded-full bg-amber-400" />
                     <div className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
                   </div>
-                  <span className="text-[10px] font-mono text-black/40">
-                    sardahomeplan.com/customer/dashboard
+                  <span className="text-[10px] font-mono text-black/50">
+                    sarda-homeplan • /customer/dashboard
                   </span>
                   <div className="w-8" />
                 </div>
@@ -2859,50 +2871,50 @@ export default function Home() {
       ===================================================================== */}
       {activePlanModal && (
         <div
-          className="fixed inset-0 z-[150] flex flex-col items-center justify-center bg-black/90 p-4 backdrop-blur-md"
+          className="fixed inset-0 z-[150] flex flex-col items-center justify-center bg-black/90 p-3 sm:p-4 backdrop-blur-md"
           onClick={() => setActivePlanModal(null)}
         >
           <button
             onClick={() => setActivePlanModal(null)}
-            className="absolute right-5 top-5 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white text-xl font-bold text-black shadow-lg hover:bg-neutral-200"
+            className="absolute right-3.5 top-3.5 z-30 flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full bg-white text-xl sm:text-2xl font-bold text-black shadow-2xl hover:bg-neutral-200 transition"
             aria-label="Close"
           >
             ×
           </button>
 
           <div
-            className="relative flex max-h-[92vh] max-w-[94vw] flex-col items-center select-none"
+            className="relative flex max-h-[92vh] max-w-[96vw] sm:max-w-[94vw] flex-col items-center select-none"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="relative overflow-hidden rounded-2xl shadow-2xl">
+            <div className="relative overflow-hidden rounded-2xl shadow-2xl max-w-full">
               <img
                 src={activePlanModal.blueprint}
                 alt={activePlanModal.title}
-                className="max-h-[78vh] max-w-[92vw] object-contain pointer-events-none"
+                className="max-h-[68vh] sm:max-h-[78vh] max-w-[94vw] object-contain pointer-events-none"
               />
 
               {/* Secure Corner Watermark Badge */}
-              <div className="pointer-events-none absolute bottom-3 right-3 z-10 flex items-center gap-2 rounded-xl bg-black/80 px-3.5 py-2 backdrop-blur-md border border-white/20 shadow-xl">
-                <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#f4cf72] text-[#063b2c] font-serif font-black text-xs">
+              <div className="pointer-events-none absolute bottom-2.5 right-2.5 sm:bottom-3 sm:right-3 z-10 flex items-center gap-2 rounded-xl bg-black/80 px-2.5 py-1.5 sm:px-3.5 sm:py-2 backdrop-blur-md border border-white/20 shadow-xl">
+                <div className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-lg bg-[#f4cf72] text-[#063b2c] font-serif font-black text-[10px] sm:text-xs">
                   S
                 </div>
                 <div className="text-left">
-                  <p className="font-serif text-[11px] font-bold tracking-wider text-white">
+                  <p className="font-serif text-[10px] sm:text-[11px] font-bold tracking-wider text-white">
                     SARDA HOMEPLAN
                   </p>
-                  <p className="text-[9px] font-medium tracking-wide text-[#f4cf72]">
+                  <p className="text-[8px] sm:text-[9px] font-medium tracking-wide text-[#f4cf72]">
                     Custom Design
                   </p>
                 </div>
               </div>
 
-              <div className="pointer-events-none absolute top-3 left-3 z-10 rounded-lg bg-black/60 px-2.5 py-1 backdrop-blur-sm border border-white/15 text-[10px] font-bold tracking-widest uppercase text-white/90">
+              <div className="pointer-events-none absolute top-2.5 left-2.5 sm:top-3 sm:left-3 z-10 rounded-lg bg-black/60 px-2 sm:px-2.5 py-1 backdrop-blur-sm border border-white/15 text-[9px] sm:text-[10px] font-bold tracking-widest uppercase text-white/90">
                 {activePlanModal.badge} • {activePlanModal.dimensions}
               </div>
             </div>
 
             {/* Modal Bottom Actions */}
-            <div className="mt-3 flex items-center gap-3">
+            <div className="mt-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => {
@@ -2910,7 +2922,7 @@ export default function Home() {
                   setActivePlanModal(null);
                   handleGetMapClick(note);
                 }}
-                className="flex items-center gap-1.5 rounded-full bg-[#f4cf72] px-5 py-2 text-xs font-extrabold text-[#063b2c] shadow-lg hover:bg-[#ffe39c] transition"
+                className="flex items-center justify-center gap-1.5 rounded-full bg-[#f4cf72] px-5 py-2.5 text-xs font-extrabold text-[#063b2c] shadow-lg hover:bg-[#ffe39c] transition"
               >
                 <span>I Want a Similar Plan</span>
                 <ArrowRight size={13} />
