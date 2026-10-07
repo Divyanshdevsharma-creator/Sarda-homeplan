@@ -1989,13 +1989,21 @@ export default function Home() {
               </p>
 
               <div className="mt-6 flex flex-wrap gap-4">
-                <Link
-                  href="/customer/login"
+                <button
+                  type="button"
+                  onClick={() => setLoginRoleModalOpen(true)}
                   className="flex items-center gap-2 rounded-full bg-[#f4cf72] px-6 py-3 text-xs font-extrabold text-[#063b2c] shadow-lg transition hover:bg-[#ffe39c] hover:scale-105"
                 >
-                  <span>{lang === "hi" ? "कस्टमर लॉगिन करें" : "Login to Dashboard"}</span>
+                  <LogIn size={14} />
+                  <span>
+                    {lang === "hi"
+                      ? "लॉगिन करें (Customer / Admin)"
+                      : lang === "hinglish"
+                      ? "Login Karein (Customer / Admin)"
+                      : "Login to Portal"}
+                  </span>
                   <ArrowRight size={14} />
-                </Link>
+                </button>
 
                 <Link
                   href="/customer/signup"
@@ -2312,6 +2320,15 @@ export default function Home() {
                 <li><a href="#portfolio" className="hover:text-[#063b2c]">Portfolio</a></li>
                 <li><a href="#process" className="hover:text-[#063b2c]">How It Works</a></li>
                 <li><a href="#contact" className="hover:text-[#063b2c]">Contact</a></li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => setLoginRoleModalOpen(true)}
+                    className="hover:text-[#063b2c] font-semibold text-[#0c7a62]"
+                  >
+                    {lang === "hi" ? "लॉगिन पोर्टल (Customer / Admin)" : "Login Portal (Customer / Admin)"}
+                  </button>
+                </li>
               </ul>
             </div>
 
