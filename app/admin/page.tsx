@@ -46,6 +46,12 @@ import {
 import { useEffect, useState, useMemo, type ComponentType } from "react";
 import Link from "next/link";
 import { createClient } from "../../lib/supabase-client";
+import { useAdminSidebarCounts } from "@/lib/hooks/useAdminSidebarCounts";
+import CustomerSelector, { CustomerProfileItem } from "@/components/admin/CustomerSelector";
+import {
+  generateAdminNotifications,
+  AdminNotificationItem,
+} from "@/lib/notifications/adminNotifications";
 
 type IconType = ComponentType<{
   size?: number;
@@ -225,6 +231,48 @@ export default function AdminDashboard() {
 
   // Registered Customer Profiles
   const [customerProfiles, setCustomerProfiles] = useState<any[]>([]);
+
+  // Notification Read States & Filtering (FIX #4 & FIX #1)
+  const [readNotificationIds, setReadNotificationIds] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("sarda_admin_read_notifs");
+        return stored ? JSON.parse(stored) : [];
+      } catch (_) {}
+    }
+    return [];
+  });
+  const [notificationFilter, setNotificationFilter] = useState<
+    "all" | "unread" | "visits" | "requests" | "payments"
+  >("all");
+
+  // Admin Profile Info (FIX #3 Part B)
+  const [adminProfile, setAdminProfile] = useState<{
+    full_name?: string;
+    role?: string;
+    email?: string;
+  }>({
+    full_name: "Admin Office",
+    role: "Super Admin",
+  });
+
+  // Customer Selector Modal State (FIX #2)
+  const [customerSelectorConfig, setCustomerSelectorConfig] = useState<{
+    isOpen: boolean;
+    action: "create_project" | "schedule_visit" | "upload_plan" | "record_payment";
+    title?: string;
+    description?: string;
+  } | null>(null);
+
+  // Site Visits History Modal State (FIX #3 Part A)
+  const [historyVisitModal, setHistoryVisitModal] = useState<{
+    current: any;
+    history: any[];
+    req: any;
+  } | null>(null);
+
+  // Authoritative Dynamic Live Sidebar Counts via Supabase Realtime (FIX #1)
+  const sidebarCounts = useAdminSidebarCounts(readNotificationIds);
 
   // WhatsApp Notification Dispatcher Modal State
   const [whatsappDispatchModal, setWhatsappDispatchModal] = useState<{
@@ -537,6 +585,188 @@ export default function AdminDashboard() {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  // Sync Admin Profile from database or localStorage (FIX #3 Part B)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedName = localStorage.getItem("sarada_admin_name");
+      const storedRole = localStorage.getItem("sarada_admin_role");
+      const storedEmail =
+        localStorage.getItem("sarada_admin_email") ||
+        localStorage.getItem("sarda_admin_email");
+      if (storedName) {
+        setAdminProfile({
+          full_name: storedName,
+          role: storedRole || "Super Admin",
+          email: storedEmail || "admin@saradahomeplan.com",
+        });
+      }
+    }
+
+    const fetchAdminInfo = async () => {
+      try {
+        const supabase = createClient();
+        const { data } = await supabase
+          .from("admins")
+          .select("full_name, role, email")
+          .limit(1)
+          .maybeSingle();
+        if (data) {
+          setAdminProfile(data);
+        }
+      } catch (_) {}
+    };
+    fetchAdminInfo();
+  }, []);
+
+  // Quick Action Customer Selector Handler (FIX #2: NEVER auto-select requests[0])
+  const handleOpenCustomerSelector = (
+    action: "create_project" | "schedule_visit" | "upload_plan" | "record_payment",
+    title?: string,
+    description?: string
+  ) => {
+    setCustomerSelectorConfig({
+      isOpen: true,
+      action,
+      title:
+        title ||
+        (action === "create_project"
+          ? "Select Customer for New Project"
+          : action === "schedule_visit"
+          ? "Select Customer for Site Visit"
+          : action === "upload_plan"
+          ? "Select Customer for Deliverable Upload"
+          : "Select Customer to Record Payment"),
+      description: description || "Choose a registered customer to continue.",
+    });
+  };
+
+  const handleCustomerSelected = (customer: CustomerProfileItem) => {
+    const action = customerSelectorConfig?.action;
+    setCustomerSelectorConfig(null);
+
+    const matchingReq = requests.find(
+      (r) =>
+        r.customer_user_id === customer.id ||
+        (r.mobile &&
+          customer.mobile &&
+          r.mobile.replace(/\D/g, "") === customer.mobile.replace(/\D/g, ""))
+    ) || {
+      id: `cust-${customer.id}`,
+      customer_user_id: customer.id,
+      full_name: customer.full_name || "Registered Customer",
+      mobile: customer.mobile || "",
+      village_city: customer.village_city || "",
+      district: customer.district || "",
+      plot_length: "30",
+      plot_width: "50",
+      measurement_unit: "feet",
+      floors: "G+1",
+      status: "Planning",
+      created_at: customer.created_at || new Date().toISOString(),
+    };
+
+    if (action === "create_project") {
+      setProjectName(`${customer.full_name || "Customer"} - House Planning`);
+      setSelectedRequest(matchingReq);
+      setShowCreateProject(true);
+    } else if (action === "schedule_visit") {
+      setSelectedRequest(matchingReq);
+      setVisitDate("");
+      setVisitTime("");
+      setVisitNotes("");
+      setShowScheduleVisit(true);
+    } else if (action === "upload_plan") {
+      setUploadPlanRequestId(matchingReq.id);
+      setUploadPlanType("rough_draft");
+      setUploadPlanTitle(
+        `2D Floor Plan (Rough Draft) - ${customer.full_name || "Customer"}`
+      );
+      setUploadPlanNote("");
+      setUploadPlanImage("");
+      setUploadPlanFileName("");
+      setShowUploadPlanModal(true);
+    } else if (action === "record_payment") {
+      setPaymentTargetRequest(matchingReq);
+      setPaymentAmount("1000");
+      setPaymentRefNumber("");
+      setShowPaymentModal(true);
+    }
+  };
+
+  // Group Site Visits by request_id (FIX #3 Part A: Deduplication + History)
+  const groupedSiteVisits = useMemo(() => {
+    const map = new Map<number | string, { current: any; history: any[] }>();
+    const sorted = [...siteVisitsList].sort((a, b) => {
+      const tA = a.created_at ? new Date(a.created_at).getTime() : Number(a.id) || 0;
+      const tB = b.created_at ? new Date(b.created_at).getTime() : Number(b.id) || 0;
+      return tB - tA;
+    });
+
+    sorted.forEach((visit) => {
+      const key = visit.request_id ?? visit.id;
+      if (!map.has(key)) {
+        map.set(key, { current: visit, history: [] });
+      } else {
+        map.get(key)!.history.push(visit);
+      }
+    });
+
+    return Array.from(map.values());
+  }, [siteVisitsList]);
+
+  // Event-Driven Admin Notifications (FIX #4)
+  const adminNotifications = useMemo(() => {
+    return generateAdminNotifications({
+      customerProfiles,
+      requests,
+      siteVisits: siteVisitsList,
+      projects,
+      payments: paymentsList,
+      readIds: readNotificationIds,
+    });
+  }, [customerProfiles, requests, siteVisitsList, projects, paymentsList, readNotificationIds]);
+
+  const handleMarkAsRead = (id: string) => {
+    setReadNotificationIds((prev) => {
+      if (prev.includes(id)) return prev;
+      const updated = [...prev, id];
+      try {
+        localStorage.setItem("sarda_admin_read_notifs", JSON.stringify(updated));
+      } catch (_) {}
+      return updated;
+    });
+  };
+
+  const handleMarkAllAsRead = () => {
+    const allIds = adminNotifications.map((n) => n.id);
+    setReadNotificationIds(allIds);
+    try {
+      localStorage.setItem("sarda_admin_read_notifs", JSON.stringify(allIds));
+    } catch (_) {}
+  };
+
+  const filteredNotifications = useMemo(() => {
+    if (notificationFilter === "unread") {
+      return adminNotifications.filter((n) => !n.isRead);
+    }
+    if (notificationFilter === "visits") {
+      return adminNotifications.filter((n) => n.actionTab === "visits");
+    }
+    if (notificationFilter === "requests") {
+      return adminNotifications.filter(
+        (n) => n.actionTab === "requests" || n.actionTab === "plans"
+      );
+    }
+    if (notificationFilter === "payments") {
+      return adminNotifications.filter((n) => n.actionTab === "payments");
+    }
+    return adminNotifications;
+  }, [adminNotifications, notificationFilter]);
+
+  const unreadNotifsCount = useMemo(() => {
+    return adminNotifications.filter((n) => !n.isRead).length;
+  }, [adminNotifications]);
 
   // Open Customer Request Modal
   const openCustomerRequest = async (request: any) => {
@@ -1303,19 +1533,23 @@ export default function AdminDashboard() {
         >
           {/* LOGO */}
           <div className="flex h-[82px] shrink-0 items-center px-7 border-b border-white/10">
-            <div className="flex items-center gap-3.5">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#d7b56d] text-[#17382c] shadow-sm">
+            <Link
+              href="/"
+              aria-label="Sarda Homeplan Home"
+              className="flex items-center gap-3.5 group transition"
+            >
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#d7b56d] text-[#17382c] shadow-sm group-hover:scale-105 transition">
                 <House size={24} strokeWidth={2} />
               </div>
               <div>
-                <p className="font-serif text-[22px] font-bold tracking-wide text-white">
+                <p className="font-serif text-[22px] font-bold tracking-wide text-white group-hover:text-[#d7b56d] transition">
                   SARDA
                 </p>
                 <p className="text-[10px] font-semibold tracking-[0.28em] text-[#d7b56d]">
                   HOMEPLAN ADMIN
                 </p>
               </div>
-            </div>
+            </Link>
           </div>
 
           {/* NAVIGATION LINKS */}
@@ -1333,7 +1567,7 @@ export default function AdminDashboard() {
             <NavItem
               icon={ClipboardList}
               label="Customer Requests"
-              badge={requests.length > 0 ? String(requests.length) : undefined}
+              badge={sidebarCounts.customerRequests > 0 ? String(sidebarCounts.customerRequests) : undefined}
               active={activeTab === "requests"}
               onClick={() => {
                 setActiveTab("requests");
@@ -1345,7 +1579,7 @@ export default function AdminDashboard() {
             <NavItem
               icon={Users}
               label="Customers Directory"
-              badge={customerProfiles.length > 0 ? String(customerProfiles.length) : undefined}
+              badge={sidebarCounts.customers > 0 ? String(sidebarCounts.customers) : undefined}
               active={activeTab === "customers"}
               onClick={() => {
                 window.location.href = "/admin/customers";
@@ -1355,7 +1589,7 @@ export default function AdminDashboard() {
             <NavItem
               icon={FolderKanban}
               label="Projects Tracking"
-              badge={activeProjectsCount > 0 ? String(activeProjectsCount) : undefined}
+              badge={sidebarCounts.projects > 0 ? String(sidebarCounts.projects) : undefined}
               active={activeTab === "projects"}
               onClick={() => {
                 setActiveTab("projects");
@@ -1366,7 +1600,7 @@ export default function AdminDashboard() {
             <NavItem
               icon={MapPin}
               label="Site Visits & Reschedules"
-              badge={pendingReschedules.length > 0 ? String(pendingReschedules.length) : undefined}
+              badge={sidebarCounts.siteVisits > 0 ? String(sidebarCounts.siteVisits) : undefined}
               active={activeTab === "visits"}
               onClick={() => {
                 setActiveTab("visits");
@@ -1377,6 +1611,7 @@ export default function AdminDashboard() {
             <NavItem
               icon={FileImage}
               label="Plans & Deliverables"
+              badge={sidebarCounts.plans > 0 ? String(sidebarCounts.plans) : undefined}
               active={activeTab === "plans"}
               onClick={() => {
                 setActiveTab("plans");
@@ -1387,6 +1622,7 @@ export default function AdminDashboard() {
             <NavItem
               icon={Wallet}
               label="Payments & Advance"
+              badge={sidebarCounts.payments > 0 ? String(sidebarCounts.payments) : undefined}
               active={activeTab === "payments"}
               onClick={() => {
                 setActiveTab("payments");
@@ -1407,7 +1643,7 @@ export default function AdminDashboard() {
             <NavItem
               icon={Bell}
               label="Notifications"
-              badge={pendingReschedules.length > 0 ? String(pendingReschedules.length) : undefined}
+              badge={sidebarCounts.notifications > 0 ? String(sidebarCounts.notifications) : undefined}
               active={activeTab === "notifications"}
               onClick={() => {
                 setActiveTab("notifications");
@@ -1495,24 +1731,32 @@ export default function AdminDashboard() {
                 title="Notifications"
               >
                 <Bell size={20} className="text-[#17221b]" />
-                {pendingReschedules.length > 0 && (
+                {sidebarCounts.notifications > 0 && (
                   <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#c2413a] text-[10px] font-bold text-white px-1">
-                    {pendingReschedules.length}
+                    {sidebarCounts.notifications}
                   </span>
                 )}
               </button>
 
               <div className="hidden h-7 w-px bg-[#d8d2c8] sm:block" />
 
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#d7b56d] text-sm font-bold text-[#17382c] shadow-sm">
-                  SH
+              <Link
+                href="/admin/profile"
+                className="flex items-center gap-2.5 rounded-2xl p-1.5 hover:bg-black/5 transition group"
+                title="View Admin Profile & Security Settings"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#d7b56d] text-sm font-bold text-[#17382c] shadow-sm group-hover:ring-2 group-hover:ring-[#063b2c] transition">
+                  {adminProfile?.full_name ? adminProfile.full_name.slice(0, 2).toUpperCase() : "SH"}
                 </div>
                 <div className="hidden text-left leading-tight sm:block">
-                  <p className="text-xs font-bold text-[#17221b]">Admin Office</p>
-                  <p className="text-[10px] text-black/50">Pratapgarh / Prayagraj</p>
+                  <p className="text-xs font-bold text-[#17221b] group-hover:text-[#063b2c] transition">
+                    {adminProfile?.full_name || "Admin Office"}
+                  </p>
+                  <p className="text-[10px] text-black/50">
+                    {adminProfile?.role || "Super Admin"} • Pratapgarh / Prayagraj
+                  </p>
                 </div>
-              </div>
+              </Link>
             </div>
           </header>
 
@@ -1563,16 +1807,13 @@ export default function AdminDashboard() {
                       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-2.5">
                         <button
                           type="button"
-                          onClick={() => {
-                            if (requests.length > 0) {
-                              const r = requests[0];
-                              setProjectName(`${r.full_name} - House Planning`);
-                              setSelectedRequest(r);
-                              setShowCreateProject(true);
-                            } else {
-                              alert("No customer request found.");
-                            }
-                          }}
+                          onClick={() =>
+                            handleOpenCustomerSelector(
+                              "create_project",
+                              "Select Customer for New Project",
+                              "Choose a registered customer to create an official house planning project."
+                            )
+                          }
                           className="flex items-center gap-2 rounded-xl bg-[#063b2c] px-3.5 py-2.5 text-xs font-bold text-white transition hover:bg-[#0a4d38] shadow-sm"
                         >
                           <Plus size={16} />
@@ -1581,17 +1822,13 @@ export default function AdminDashboard() {
 
                         <button
                           type="button"
-                          onClick={() => {
-                            if (requests.length > 0) {
-                              setSelectedRequest(requests[0]);
-                              setVisitDate("");
-                              setVisitTime("");
-                              setVisitNotes("");
-                              setShowScheduleVisit(true);
-                            } else {
-                              alert("No customer requests to schedule.");
-                            }
-                          }}
+                          onClick={() =>
+                            handleOpenCustomerSelector(
+                              "schedule_visit",
+                              "Select Customer for Site Visit",
+                              "Choose a registered customer to schedule or propose an on-site plot visit."
+                            )
+                          }
                           className="flex items-center gap-2 rounded-xl bg-[#2563eb] px-3.5 py-2.5 text-xs font-bold text-white transition hover:bg-[#1d4ed8] shadow-sm"
                         >
                           <CalendarDays size={16} />
@@ -1600,20 +1837,13 @@ export default function AdminDashboard() {
 
                         <button
                           type="button"
-                          onClick={() => {
-                            const defaultReq = requests[0];
-                            setUploadPlanRequestId(defaultReq ? defaultReq.id : null);
-                            setUploadPlanType("rough_draft");
-                            setUploadPlanTitle(
-                              defaultReq
-                                ? `2D Floor Plan (Rough Draft) - ${defaultReq.full_name}`
-                                : "2D Floor Plan (Rough Draft)"
-                            );
-                            setUploadPlanNote("");
-                            setUploadPlanImage("");
-                            setUploadPlanFileName("");
-                            setShowUploadPlanModal(true);
-                          }}
+                          onClick={() =>
+                            handleOpenCustomerSelector(
+                              "upload_plan",
+                              "Select Customer for Deliverable Upload",
+                              "Choose a registered customer to upload 2D layout drafts, blueprints, or thekedar handouts."
+                            )
+                          }
                           className="flex items-center gap-2 rounded-xl bg-[#0c7a62] px-3.5 py-2.5 text-xs font-bold text-white transition hover:bg-[#096650] shadow-sm"
                         >
                           <Upload size={16} />
@@ -1622,12 +1852,13 @@ export default function AdminDashboard() {
 
                         <button
                           type="button"
-                          onClick={() => {
-                            if (requests.length > 0) {
-                              setPaymentTargetRequest(requests[0]);
-                              setShowPaymentModal(true);
-                            }
-                          }}
+                          onClick={() =>
+                            handleOpenCustomerSelector(
+                              "record_payment",
+                              "Select Customer to Record Payment",
+                              "Choose a registered customer to record token advance or stage payment."
+                            )
+                          }
                           className="flex items-center gap-2 rounded-xl bg-[#b45309] px-3.5 py-2.5 text-xs font-bold text-white transition hover:bg-[#92400e] shadow-sm"
                         >
                           <Wallet size={16} />
@@ -2081,12 +2312,13 @@ export default function AdminDashboard() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        const defaultReq = requests[0];
-                        setUploadPlanRequestId(defaultReq ? defaultReq.id : null);
-                        setUploadPlanType("rough_draft");
-                        setShowUploadPlanModal(true);
-                      }}
+                      onClick={() =>
+                        handleOpenCustomerSelector(
+                          "upload_plan",
+                          "Select Customer for Plan Upload",
+                          "Choose a registered customer to upload 2D layout drafts or blueprints."
+                        )
+                      }
                       className="flex items-center gap-1.5 rounded-xl bg-[#0c7a62] px-4 py-2 text-xs font-bold text-white hover:bg-[#096650]"
                     >
                       <Upload size={14} />
@@ -2309,14 +2541,13 @@ export default function AdminDashboard() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => {
-                      if (requests.length > 0) {
-                        const r = requests[0];
-                        setProjectName(`${r.full_name} - House Planning`);
-                        setSelectedRequest(r);
-                        setShowCreateProject(true);
-                      }
-                    }}
+                    onClick={() =>
+                      handleOpenCustomerSelector(
+                        "create_project",
+                        "Select Customer for New Project",
+                        "Choose a registered customer to start an official house planning project."
+                      )
+                    }
                     className="flex items-center gap-2 rounded-xl bg-[#063b2c] px-4 py-2 text-xs font-bold text-white hover:bg-[#0a4d38]"
                   >
                     <Plus size={16} />
@@ -2412,12 +2643,13 @@ export default function AdminDashboard() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => {
-                      if (requests.length > 0) {
-                        setSelectedRequest(requests[0]);
-                        setShowScheduleVisit(true);
-                      }
-                    }}
+                    onClick={() =>
+                      handleOpenCustomerSelector(
+                        "schedule_visit",
+                        "Select Customer for Site Visit",
+                        "Choose a registered customer to schedule or propose an on-site plot visit."
+                      )
+                    }
                     className="flex items-center gap-2 rounded-xl bg-[#063b2c] px-4 py-2 text-xs font-bold text-white hover:bg-[#0a4d38]"
                   >
                     <Plus size={16} />
@@ -2513,12 +2745,12 @@ export default function AdminDashboard() {
                   </h3>
 
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {siteVisitsList.length === 0 ? (
+                    {groupedSiteVisits.length === 0 ? (
                       <div className="col-span-full py-12 text-center text-sm text-black/40 bg-[#faf8f4] rounded-xl border border-[#ded9cf]">
                         No scheduled or proposed visits yet.
                       </div>
                     ) : (
-                      siteVisitsList.map((visit) => {
+                      groupedSiteVisits.map(({ current: visit, history }) => {
                         const req = requests.find((r) => r.id === visit.request_id);
                         return (
                           <div
@@ -2534,15 +2766,29 @@ export default function AdminDashboard() {
                                   {req?.village_city || ""}, {req?.district || ""}
                                 </p>
                               </div>
-                              <span
-                                className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                                  visit.status === "Confirmed"
-                                    ? "bg-[#eaf4eb] text-[#24632c]"
-                                    : "bg-[#fff3d6] text-[#8a641d]"
-                                }`}
-                              >
-                                {visit.status || "Proposed"}
-                              </span>
+                              <div className="flex flex-col items-end gap-1">
+                                <span
+                                  className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                                    visit.status === "Confirmed"
+                                      ? "bg-[#eaf4eb] text-[#24632c]"
+                                      : "bg-[#fff3d6] text-[#8a641d]"
+                                  }`}
+                                >
+                                  {visit.status || "Proposed"}
+                                </span>
+                                {history.length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setHistoryVisitModal({ current: visit, history, req })
+                                    }
+                                    className="rounded-full bg-[#f0ebd9] px-2 py-0.5 text-[9px] font-bold text-[#8c6710] hover:bg-[#fae8b2] transition"
+                                    title="View previous visit logs for this client"
+                                  >
+                                    History ({history.length} prior)
+                                  </button>
+                                )}
+                              </div>
                             </div>
 
                             <div className="p-2.5 rounded-lg bg-white border border-[#eee7db] text-xs">
@@ -2604,12 +2850,13 @@ export default function AdminDashboard() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => {
-                      const defaultReq = requests[0];
-                      setUploadPlanRequestId(defaultReq ? defaultReq.id : null);
-                      setUploadPlanType("rough_draft");
-                      setShowUploadPlanModal(true);
-                    }}
+                    onClick={() =>
+                      handleOpenCustomerSelector(
+                        "upload_plan",
+                        "Select Customer for Deliverable Upload",
+                        "Choose a registered customer to upload 2D layout drafts, blueprints, or handouts."
+                      )
+                    }
                     className="flex items-center gap-2 rounded-xl bg-[#0c7a62] px-4 py-2 text-xs font-bold text-white hover:bg-[#096650]"
                   >
                     <Upload size={16} />
@@ -2734,12 +2981,13 @@ export default function AdminDashboard() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => {
-                      if (requests.length > 0) {
-                        setPaymentTargetRequest(requests[0]);
-                        setShowPaymentModal(true);
-                      }
-                    }}
+                    onClick={() =>
+                      handleOpenCustomerSelector(
+                        "record_payment",
+                        "Select Customer to Record Payment",
+                        "Choose a registered customer to record token advance or stage payment."
+                      )
+                    }
                     className="flex items-center gap-2 rounded-xl bg-[#063b2c] px-4 py-2 text-xs font-bold text-white hover:bg-[#0a4d38]"
                   >
                     <Wallet size={16} />
@@ -2913,62 +3161,176 @@ export default function AdminDashboard() {
             ========================================================= */}
             {activeTab === "notifications" && (
               <div className="space-y-4">
-                <div className="bg-white p-5 rounded-2xl border border-[#ded9cf] shadow-sm">
-                  <h2 className="font-serif text-2xl font-bold text-[#17221b]">
-                    Owner Action Notifications
-                  </h2>
-                  <p className="text-xs text-black/55">
-                    Critical alerts requiring your immediate attention or coordination.
-                  </p>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-[#ded9cf] shadow-sm">
+                  <div>
+                    <h2 className="font-serif text-2xl font-bold text-[#17221b]">
+                      Owner Action Notifications
+                    </h2>
+                    <p className="text-xs text-black/55 mt-0.5">
+                      Live event alerts across customer registrations, planning requests, site visit reschedules, revisions, and payments.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleMarkAllAsRead}
+                      className="rounded-xl border border-[#ded9cf] bg-[#faf8f4] px-3.5 py-2 text-xs font-semibold text-black/70 hover:bg-[#ede8dc] transition"
+                    >
+                      Mark All as Read
+                    </button>
+                  </div>
                 </div>
 
-                <div className="space-y-3">
-                  {pendingReschedules.map((pr) => (
-                    <div
-                      key={pr.id}
-                      className="flex items-start gap-4 p-4 rounded-2xl border-2 border-[#d5a842] bg-[#fffdf5] shadow-sm"
+                {/* Filter Chips */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  {[
+                    { id: "all", label: "All Alerts", count: adminNotifications.length },
+                    { id: "unread", label: "Unread", count: unreadNotifsCount },
+                    {
+                      id: "visits",
+                      label: "Site Visits",
+                      count: adminNotifications.filter((n) => n.actionTab === "visits").length,
+                    },
+                    {
+                      id: "requests",
+                      label: "Requests & Plans",
+                      count: adminNotifications.filter(
+                        (n) => n.actionTab === "requests" || n.actionTab === "plans"
+                      ).length,
+                    },
+                    {
+                      id: "payments",
+                      label: "Payments",
+                      count: adminNotifications.filter((n) => n.actionTab === "payments").length,
+                    },
+                  ].map((chip) => (
+                    <button
+                      key={chip.id}
+                      type="button"
+                      onClick={() => setNotificationFilter(chip.id as any)}
+                      className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
+                        notificationFilter === chip.id
+                          ? "bg-[#063b2c] text-[#f4cf72] shadow-sm"
+                          : "border border-[#ded9cf] bg-white text-black/70 hover:bg-[#faf8f4]"
+                      }`}
                     >
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fae8b2] text-[#8c6710] shrink-0">
-                        <AlertTriangle size={20} />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex justify-between items-start">
-                          <h4 className="font-bold text-sm text-[#17221b]">
-                            Site Visit Reschedule Requested by {pr.request?.full_name || "Customer"}
-                          </h4>
-                          <span className="text-[10px] font-bold text-[#8c6710]">High Priority</span>
-                        </div>
-                        <p className="text-xs text-black/60 mt-1">
-                          Client requested new slot: {pr.customer_preferred_date} at {pr.customer_preferred_time}.
-                        </p>
-                        <div className="mt-3 flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActiveTab("visits");
-                            }}
-                            className="rounded-xl bg-[#0c7a62] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#096650]"
-                          >
-                            Review & Accept
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                      <span>{chip.label}</span>
+                      <span
+                        className={`rounded-full px-1.5 py-0.2 text-[10px] ${
+                          notificationFilter === chip.id
+                            ? "bg-white/20 text-white"
+                            : "bg-black/5 text-black/60"
+                        }`}
+                      >
+                        {chip.count}
+                      </span>
+                    </button>
                   ))}
+                </div>
 
-                  <div className="flex items-start gap-4 p-4 rounded-2xl border border-[#ded9cf] bg-white shadow-sm">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eef8f4] text-[#0c7a62] shrink-0">
-                      <FileCheck2 size={20} />
+                {/* Notification Items List */}
+                <div className="space-y-3 pt-2">
+                  {filteredNotifications.length === 0 ? (
+                    <div className="py-16 text-center text-sm text-black/40 bg-white rounded-2xl border border-[#ded9cf]">
+                      No notifications found in this view.
                     </div>
-                    <div>
-                      <h4 className="font-bold text-sm text-[#17221b]">
-                        Deliverable Delivery System Active
-                      </h4>
-                      <p className="text-xs text-black/60 mt-1">
-                        2D rough draft and Mistri handouts are synchronized with customer portal.
-                      </p>
-                    </div>
-                  </div>
+                  ) : (
+                    filteredNotifications.map((notif) => (
+                      <div
+                        key={notif.id}
+                        className={`flex items-start gap-4 p-4 rounded-2xl border transition shadow-sm ${
+                          !notif.isRead
+                            ? "border-[#bda76d] bg-[#fffdf8]"
+                            : "border-[#ded9cf] bg-white"
+                        }`}
+                      >
+                        <div
+                          className={`flex h-10 w-10 items-center justify-center rounded-xl shrink-0 ${
+                            notif.type === "reschedule_requested"
+                              ? "bg-[#fae8b2] text-[#8c6710]"
+                              : notif.type === "registration"
+                              ? "bg-[#eaf5ed] text-[#0c7a62]"
+                              : notif.type === "payment_received"
+                              ? "bg-[#eaf5ed] text-[#0c7a62]"
+                              : "bg-[#eef3f5] text-[#3d515a]"
+                          }`}
+                        >
+                          {notif.type === "reschedule_requested" ? (
+                            <AlertTriangle size={20} />
+                          ) : notif.type === "registration" ? (
+                            <Users size={20} />
+                          ) : notif.type === "payment_received" ? (
+                            <Wallet size={20} />
+                          ) : (
+                            <ClipboardList size={20} />
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-bold text-sm text-[#17221b]">
+                                {notif.title}
+                              </h4>
+                              {!notif.isRead && (
+                                <span className="h-2 w-2 rounded-full bg-[#c2413a]" title="Unread" />
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${notif.badgeColor}`}
+                              >
+                                {notif.badge}
+                              </span>
+                              <span className="text-[10px] text-black/40 whitespace-nowrap">
+                                {new Date(notif.createdAt).toLocaleDateString("en-IN", {
+                                  day: "numeric",
+                                  month: "short",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                            </div>
+                          </div>
+
+                          <p className="text-xs text-black/65 mt-1 leading-relaxed">
+                            {notif.message}
+                          </p>
+
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleMarkAsRead(notif.id);
+                                if (
+                                  notif.actionUrl &&
+                                  notif.actionUrl.startsWith("/admin/customers/")
+                                ) {
+                                  window.location.href = notif.actionUrl;
+                                } else if (notif.actionTab) {
+                                  setActiveTab(notif.actionTab as AdminTab);
+                                }
+                              }}
+                              className="rounded-xl bg-[#063b2c] px-4 py-1.5 text-xs font-bold text-[#f4cf72] hover:bg-[#0a4d38] transition shadow-sm"
+                            >
+                              {notif.actionLabel}
+                            </button>
+
+                            {!notif.isRead && (
+                              <button
+                                type="button"
+                                onClick={() => handleMarkAsRead(notif.id)}
+                                className="rounded-xl border border-[#ded9cf] bg-white px-3 py-1.5 text-xs font-semibold text-black/60 hover:bg-[#faf8f4] transition"
+                              >
+                                Mark as Read
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             )}
@@ -3955,6 +4317,121 @@ export default function AdminDashboard() {
                   <span>Send on WhatsApp 📲</span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* =========================================================
+          CUSTOMER SELECTOR MODAL (FIX #2: NO BLIND AUTO-SELECT)
+      ========================================================= */}
+      {customerSelectorConfig?.isOpen && (
+        <CustomerSelector
+          title={customerSelectorConfig.title}
+          description={customerSelectorConfig.description}
+          onSelect={handleCustomerSelected}
+          onCancel={() => setCustomerSelectorConfig(null)}
+        />
+      )}
+
+      {/* =========================================================
+          SITE VISIT DEDUPLICATION HISTORY MODAL (FIX #3 Part A)
+      ========================================================= */}
+      {historyVisitModal && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-3xl border border-[#ded9cf] bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#e4dfd5] bg-[#faf8f3] px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#063b2c] text-[#f4cf72]">
+                  <Clock3 size={20} />
+                </div>
+                <div>
+                  <h3 className="font-serif text-lg font-bold text-[#17221b]">
+                    Visit History: {historyVisitModal.req?.full_name || `Request #${historyVisitModal.current.request_id}`}
+                  </h3>
+                  <p className="text-xs text-black/55">
+                    Complete chronological record of all proposed and rescheduled visits for this plot.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setHistoryVisitModal(null)}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-[#ded9cf] text-black/60 hover:bg-[#ede8dc] transition"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {/* Current Active Visit */}
+              <div className="rounded-2xl border-2 border-[#063b2c] bg-[#eef5ee] p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="rounded-full bg-[#063b2c] px-2.5 py-0.5 text-[10px] font-bold text-[#f4cf72]">
+                    Current Active Slot
+                  </span>
+                  <span className="text-xs font-bold text-[#063b2c]">
+                    {historyVisitModal.current.status || "Proposed"}
+                  </span>
+                </div>
+                <p className="font-bold text-sm text-[#17221b]">
+                  📅 {historyVisitModal.current.visit_date || "Date Pending"} · ⏰ {historyVisitModal.current.visit_time || "Time Pending"}
+                </p>
+                {historyVisitModal.current.notes && (
+                  <p className="text-xs text-black/65 mt-1 italic">
+                    Note: {historyVisitModal.current.notes}
+                  </p>
+                )}
+              </div>
+
+              {/* Older Visits */}
+              <div>
+                <h4 className="font-serif font-bold text-xs uppercase tracking-wider text-black/50 mb-2">
+                  Previous Visit Iterations ({historyVisitModal.history.length})
+                </h4>
+                <div className="space-y-2">
+                  {historyVisitModal.history.map((oldVisit, idx) => (
+                    <div
+                      key={oldVisit.id || idx}
+                      className="rounded-xl border border-[#ded9cf] bg-[#faf8f4] p-3 text-xs space-y-1"
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-black/70">
+                          Visit #{oldVisit.id} (Prior Slot)
+                        </span>
+                        <span className="rounded-full bg-[#ede8dc] px-2 py-0.5 text-[10px] font-semibold text-black/60">
+                          {oldVisit.status || "Superceded"}
+                        </span>
+                      </div>
+                      <p className="font-semibold text-black/80">
+                        📅 {oldVisit.visit_date || "N/A"} · ⏰ {oldVisit.visit_time || "N/A"}
+                      </p>
+                      {oldVisit.notes && (
+                        <p className="text-black/60 italic text-[11px]">Note: {oldVisit.notes}</p>
+                      )}
+                      {oldVisit.customer_response_notes && (
+                        <p className="text-[#8c6710] text-[11px]">
+                          Customer Response: &ldquo;{oldVisit.customer_response_notes}&rdquo;
+                        </p>
+                      )}
+                      {oldVisit.created_at && (
+                        <p className="text-[10px] text-black/40">
+                          Recorded on: {new Date(oldVisit.created_at).toLocaleString("en-IN")}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end border-t border-[#e4dfd5] bg-[#faf8f3] px-6 py-3">
+              <button
+                type="button"
+                onClick={() => setHistoryVisitModal(null)}
+                className="rounded-xl bg-[#063b2c] px-5 py-2 text-xs font-bold text-[#f4cf72] hover:bg-[#0a4d38] transition"
+              >
+                Close History
+              </button>
             </div>
           </div>
         </div>
