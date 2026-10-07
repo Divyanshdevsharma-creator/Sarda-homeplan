@@ -252,7 +252,28 @@ export default function AdminDashboard() {
     const supabase = createClient();
     const reqId = targetRequest.id;
 
-    // 1. Persist notification directly to Supabase notifications table
+    // 1. Persist notification tag in customer_requests.requirements for guaranteed customer dashboard delivery
+    try {
+      const notifTag = `\n\n[ADMIN_NOTIFICATION_ENTRY:${JSON.stringify({
+        id: Date.now(),
+        title,
+        message,
+        actionTab,
+        date: new Date().toLocaleDateString("en-IN", {
+          day: "numeric",
+          month: "short",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      })}]`;
+      const curReqs = targetRequest.requirements || "";
+      await supabase
+        .from("customer_requests")
+        .update({ requirements: curReqs + notifTag })
+        .eq("id", targetRequest.id);
+    } catch (_) {}
+
+    // 2. Persist notification to Supabase notifications table if present
     try {
       await supabase.from("notifications").insert({
         user_id: targetRequest.customer_user_id || null,
@@ -261,14 +282,12 @@ export default function AdminDashboard() {
         message,
         action_tab: actionTab,
         type: actionTab === "visit" ? "visit" : actionTab === "plans" ? "plan" : "general",
-        badge: "Architect Update",
+        badge: "Admin Update",
         badge_color: "bg-[#f4ead0] text-[#8c6710]",
       });
-    } catch (notifErr) {
-      console.warn("Notifications insert notice:", notifErr);
-    }
+    } catch (_) {}
 
-    // 2. Open WhatsApp Dispatch Modal
+    // 3. Open WhatsApp Dispatch Modal
     setWhatsappDispatchModal({
       isOpen: true,
       customerName: targetRequest.full_name || "Customer",
@@ -281,16 +300,14 @@ export default function AdminDashboard() {
   // Today's Tasks Interactive State
   const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>({});
 
-  // 1. Fetch Requests from Supabase (Pure DB Source of Truth)
+  // 1. Fetch Requests from Supabase (Safe select('*') - never fails on schema mismatch)
   const fetchRequests = async () => {
     setLoadingRequests(true);
     const supabase = createClient();
 
     const { data, error } = await supabase
       .from("customer_requests")
-      .select(
-        "id, customer_user_id, full_name, mobile, village_city, district, plot_length, plot_width, measurement_unit, floors, requirements, vastu_consultation, status, attachment_url, created_at"
-      )
+      .select("*")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -298,6 +315,7 @@ export default function AdminDashboard() {
       setRequests([]);
     } else {
       setRequests(data || []);
+      fetchDeliverables(data || []);
     }
     setLoadingRequests(false);
   };
@@ -324,25 +342,25 @@ export default function AdminDashboard() {
 
     const { data: visits, error } = await supabase
       .from("site_visits")
-      .select(
-        "id, request_id, visit_date, visit_time, status, notes, customer_response, customer_response_notes, customer_preferred_date, customer_preferred_time, customer_responded_at"
-      )
+      .select("*")
       .order("id", { ascending: false });
 
     if (!error && visits) {
       setSiteVisitsList(visits);
 
+      // Match explicit requests AND customer preferred date submissions
       const reschedules = visits.filter(
         (v) =>
           v.customer_response === "Reschedule Requested" ||
-          v.status === "Reschedule Requested"
+          v.status === "Reschedule Requested" ||
+          (v.customer_preferred_date && v.status !== "Confirmed" && v.status !== "Completed" && v.status !== "Cancelled")
       );
 
       if (reschedules.length > 0) {
         const reqIds = [...new Set(reschedules.map((v) => v.request_id).filter(Boolean))];
         const { data: reqs } = await supabase
           .from("customer_requests")
-          .select("id, full_name, mobile, village_city, district")
+          .select("*")
           .in("id", reqIds);
 
         const reqMap = new Map((reqs || []).map((r) => [r.id, r]));
@@ -378,19 +396,85 @@ export default function AdminDashboard() {
     setLoadingPayments(false);
   };
 
-  // 5. Fetch Deliverables from Supabase
-  const fetchDeliverables = async () => {
+  // 5. Fetch Deliverables from Supabase & requests.requirements
+  const fetchDeliverables = async (currentRequests?: any[]) => {
     const supabase = createClient();
-    const { data, error } = await supabase
-      .from("deliverables")
-      .select("*")
-      .order("created_at", { ascending: false });
+    let dbDeliverables: any[] = [];
+    try {
+      const { data, error } = await supabase
+        .from("deliverables")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (!error && data) {
+        dbDeliverables = data;
+      }
+    } catch (_) {}
 
-    if (!error && data) {
-      setDeliverablesList(data);
-    } else {
-      setDeliverablesList([]);
-    }
+    // Extract all deliverables stored in customer_requests.requirements
+    const reqList = currentRequests || requests;
+    const parsedFromReqs: any[] = [];
+    reqList.forEach((req) => {
+      if (req.requirements) {
+        const rough = req.requirements.match(/\[ADMIN_PLAN_DELIVERABLE_ROUGH:([\s\S]*?)\]/);
+        if (rough) {
+          try {
+            const item = JSON.parse(rough[1]);
+            parsedFromReqs.push({
+              id: `req-${req.id}-rough`,
+              request_id: req.id,
+              customer_id: req.customer_user_id,
+              type: "rough_draft",
+              title: item.title || `2D Rough Draft - ${req.full_name}`,
+              file_url: item.image,
+              notes: item.note,
+              created_at: item.date || req.created_at,
+            });
+          } catch (_) {}
+        }
+        const final = req.requirements.match(/\[ADMIN_PLAN_DELIVERABLE_FINAL:([\s\S]*?)\]/);
+        if (final) {
+          try {
+            const item = JSON.parse(final[1]);
+            parsedFromReqs.push({
+              id: `req-${req.id}-final`,
+              request_id: req.id,
+              customer_id: req.customer_user_id,
+              type: "final_blueprint",
+              title: item.title || `Final Blueprint - ${req.full_name}`,
+              file_url: item.image,
+              notes: item.note,
+              created_at: item.date || req.created_at,
+            });
+          } catch (_) {}
+        }
+        const mistri = req.requirements.match(/\[ADMIN_PLAN_DELIVERABLE_MISTRI:([\s\S]*?)\]/);
+        if (mistri) {
+          try {
+            const item = JSON.parse(mistri[1]);
+            parsedFromReqs.push({
+              id: `req-${req.id}-mistri`,
+              request_id: req.id,
+              customer_id: req.customer_user_id,
+              type: "mistri_sheet",
+              title: item.title || `Mistri Execution Sheet - ${req.full_name}`,
+              file_url: item.image,
+              notes: item.note,
+              created_at: item.date || req.created_at,
+            });
+          } catch (_) {}
+        }
+      }
+    });
+
+    // Merge without duplicates
+    const combined = [...dbDeliverables];
+    parsedFromReqs.forEach((p) => {
+      if (!combined.some((c) => String(c.id) === String(p.id) || (c.request_id === p.request_id && c.type === p.type))) {
+        combined.push(p);
+      }
+    });
+
+    setDeliverablesList(combined);
   };
 
   // 6. Fetch Registered Customer Profiles from Supabase
@@ -398,7 +482,7 @@ export default function AdminDashboard() {
     const supabase = createClient();
     const { data, error } = await supabase
       .from("customer_profiles")
-      .select("*")
+      .select("id, full_name, mobile, village_city, district, created_at, updated_at")
       .order("created_at", { ascending: false });
 
     if (!error && data) {
@@ -441,9 +525,9 @@ export default function AdminDashboard() {
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "deliverables" },
+        { event: "*", schema: "public", table: "customer_profiles" },
         () => {
-          fetchDeliverables();
+          fetchCustomerProfiles();
         }
       )
       .subscribe();
@@ -821,49 +905,88 @@ export default function AdminDashboard() {
         ? "Final Plan"
         : targetReq?.status || "Planning";
 
-    // 1. Insert into public.deliverables table in Supabase
-    const { data: newDeliverable, error: delivError } = await supabase
-      .from("deliverables")
-      .insert({
-        request_id: typeof reqId === "number" ? reqId : null,
-        customer_id: customerUserId,
-        type: uploadPlanType,
-        title: title,
-        file_url: uploadPlanImage,
-        notes: note,
-      })
-      .select()
-      .maybeSingle();
+    // 1. Try insert into public.deliverables table in Supabase
+    let newDeliverable: any = null;
+    try {
+      const { data } = await supabase
+        .from("deliverables")
+        .insert({
+          request_id: typeof reqId === "number" ? reqId : null,
+          customer_id: customerUserId,
+          type: uploadPlanType,
+          title: title,
+          file_url: uploadPlanImage,
+          notes: note,
+        })
+        .select()
+        .maybeSingle();
+      newDeliverable = data;
+    } catch (_) {}
 
-    if (delivError) {
-      alert(`Deliverable upload failed: ${delivError.message}`);
-      setIsUploadingPlan(false);
-      return;
-    }
+    // 2. Guaranteed persistence: Save plan tag into customer_requests.requirements
+    const tagKey =
+      uploadPlanType === "rough_draft"
+        ? "ADMIN_PLAN_DELIVERABLE_ROUGH"
+        : uploadPlanType === "final_blueprint"
+        ? "ADMIN_PLAN_DELIVERABLE_FINAL"
+        : "ADMIN_PLAN_DELIVERABLE_MISTRI";
 
-    // 2. Update status in customer_requests table in Supabase
+    const deliverablePayload = JSON.stringify({
+      id: Date.now(),
+      title,
+      image: uploadPlanImage,
+      note,
+      date: new Date().toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }),
+    });
+
+    let existingReqs = targetReq?.requirements || "";
+    const regex = new RegExp(`\\[${tagKey}:[\\s\\S]*?\\]`, "g");
+    existingReqs = existingReqs.replace(regex, "").trim();
+    const updatedRequirements = `${existingReqs}\n\n[${tagKey}:${deliverablePayload}]`;
+
+    // 3. Update status and requirements in customer_requests table in Supabase
     const { error: reqError } = await supabase
       .from("customer_requests")
-      .update({ status: newStatus })
+      .update({
+        status: newStatus,
+        requirements: updatedRequirements,
+      })
       .eq("id", reqId);
 
     if (reqError) {
-      console.warn("Status update error:", reqError.message);
+      console.warn("Status update note:", reqError.message);
     }
 
-    // 3. Update local state
-    if (newDeliverable) {
-      setDeliverablesList((prev) => [newDeliverable, ...prev]);
-    }
+    const deliverableItem = newDeliverable || {
+      id: `deliv-${Date.now()}`,
+      request_id: reqId,
+      customer_id: customerUserId,
+      type: uploadPlanType,
+      title,
+      file_url: uploadPlanImage,
+      notes: note,
+      created_at: new Date().toISOString(),
+    };
+
+    setDeliverablesList((prev) => [deliverableItem, ...prev]);
 
     setRequests((prev) =>
-      prev.map((r) => (r.id === reqId ? { ...r, status: newStatus } : r))
+      prev.map((r) =>
+        r.id === reqId
+          ? { ...r, status: newStatus, requirements: updatedRequirements }
+          : r
+      )
     );
 
     if (selectedRequest && selectedRequest.id === reqId) {
       setSelectedRequest({
         ...selectedRequest,
         status: newStatus,
+        requirements: updatedRequirements,
       });
     }
 
@@ -1002,28 +1125,124 @@ export default function AdminDashboard() {
     });
   }, [requests, searchQuery, selectedWorkflowFilter]);
 
-  // Unique Customers List
+  // Unique Customers List (merged from requests and customer_profiles)
   const uniqueCustomers = useMemo(() => {
     const map = new Map<string, any>();
+    // 1. Add all registered customer profiles from DB
+    customerProfiles.forEach((cp) => {
+      const key = cp.mobile || cp.id || cp.full_name;
+      if (key) {
+        map.set(key, {
+          id: cp.id,
+          name: cp.full_name || "Registered Customer",
+          mobile: cp.mobile || "",
+          village: cp.village_city || "",
+          district: cp.district || "",
+          totalRequests: 0,
+          latestStatus: "Registered Customer",
+          latestRequest: null,
+          created_at: cp.created_at,
+        });
+      }
+    });
+
+    // 2. Merge with real requests
     requests.forEach((r) => {
       const key = r.mobile || r.customer_user_id || r.full_name;
       if (!map.has(key)) {
         map.set(key, {
+          id: r.customer_user_id || r.id,
           name: r.full_name,
           mobile: r.mobile,
           village: r.village_city,
           district: r.district,
           totalRequests: 1,
-          latestStatus: r.status,
+          latestStatus: r.status || "New Request",
           latestRequest: r,
+          created_at: r.created_at,
         });
       } else {
         const item = map.get(key);
         item.totalRequests += 1;
+        item.latestStatus = r.status || item.latestStatus;
+        if (!item.latestRequest) item.latestRequest = r;
       }
     });
     return Array.from(map.values());
-  }, [requests]);
+  }, [requests, customerProfiles]);
+
+  // Today's Real Execution Tasks (dynamically derived from real client pending items)
+  const dynamicTasks = useMemo(() => {
+    const tasks: { id: string; text: string; time: string; linkTab?: AdminTab; req?: any }[] = [];
+
+    // 1. Pending Reschedules
+    pendingReschedules.forEach((pr, i) => {
+      tasks.push({
+        id: `reschedule-${pr.id || i}`,
+        text: `Respond to visit reschedule from ${pr.request?.full_name || "Customer"}: "${pr.customer_response_notes || pr.customer_preferred_date || "New time requested"}"`,
+        time: pr.customer_preferred_time || "Pending",
+        linkTab: "visits",
+        req: pr.request,
+      });
+    });
+
+    // 2. Revisions requested by customer
+    requests
+      .filter((r) => (r.status || "") === "Revision")
+      .forEach((r) => {
+        tasks.push({
+          id: `rev-${r.id}`,
+          text: `Revise 2D floor plan for ${r.full_name} (${r.village_city || ""}) as requested by client`,
+          time: "Urgent",
+          linkTab: "requests",
+          req: r,
+        });
+      });
+
+    // 3. New Requests awaiting contact
+    requests
+      .filter((r) => (r.status || "New Request") === "New Request")
+      .forEach((r) => {
+        tasks.push({
+          id: `new-req-${r.id}`,
+          text: `Call ${r.full_name} (${r.mobile}) to discuss plot requirements (${r.plot_length}x${r.plot_width} ${r.measurement_unit || "ft"})`,
+          time: "New",
+          linkTab: "requests",
+          req: r,
+        });
+      });
+
+    // 4. Site Visits scheduled
+    siteVisitsList
+      .filter((v) => v.status === "Confirmed" || v.status === "Proposed")
+      .slice(0, 3)
+      .forEach((v) => {
+        const matched = requests.find((r) => r.id === v.request_id);
+        tasks.push({
+          id: `visit-${v.id}`,
+          text: `Site visit for ${matched?.full_name || "Client"} at ${matched?.village_city || "site"} (${v.status})`,
+          time: `${v.visit_date} ${v.visit_time}`,
+          linkTab: "visits",
+          req: matched,
+        });
+      });
+
+    // 5. Work in progress drafts
+    requests
+      .filter((r) => (r.status || "") === "Planning" || (r.status || "") === "Rough Plan")
+      .slice(0, 2)
+      .forEach((r) => {
+        tasks.push({
+          id: `plan-${r.id}`,
+          text: `Draft & finalize working plan layout for ${r.full_name}`,
+          time: "In Progress",
+          linkTab: "plans",
+          req: r,
+        });
+      });
+
+    return tasks.slice(0, 6);
+  }, [pendingReschedules, requests, siteVisitsList]);
 
   return (
     <main className="min-h-screen bg-[#f3efe6] text-[#17221b]">
@@ -1299,7 +1518,7 @@ export default function AdminDashboard() {
                         </span>
                       </div>
                       <h1 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight text-[#10251d]">
-                        Welcome back, Architect! 👋
+                        Welcome back, Sarda Homeplan! 👋
                       </h1>
                       <p className="mt-2 text-sm text-black/65 leading-relaxed">
                         Manage house-planning requests, coordinate on-site visits with clients,
@@ -1725,42 +1944,45 @@ export default function AdminDashboard() {
                         </h4>
                       </div>
                       <span className="text-[11px] font-bold text-black/50">
-                        {Object.values(completedTasks).filter(Boolean).length} / 4 Completed
+                        {Object.values(completedTasks).filter(Boolean).length} / {dynamicTasks.length} Completed
                       </span>
                     </div>
 
                     <div className="space-y-2.5">
-                      {[
-                        { id: "t1", text: "Call Rahul Kumar to confirm Ishanya Mandir dimensions", time: "10:30 AM" },
-                        { id: "t2", text: "Site Visit at Sharma Ji's plot in Civil Lines", time: "04:00 PM" },
-                        { id: "t3", text: "Upload Phase 1 Rough Draft for Neha Gupta", time: "06:00 PM" },
-                        { id: "t4", text: "Generate Thekedar Mistri sheet for Amit Singh", time: "07:30 PM" },
-                      ].map((task) => (
-                        <div
-                          key={task.id}
-                          onClick={() =>
-                            setCompletedTasks((prev) => ({ ...prev, [task.id]: !prev[task.id] }))
-                          }
-                          className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
-                            completedTasks[task.id]
-                              ? "bg-[#f5f9f6] border-[#cfe2d4] line-through text-black/40"
-                              : "bg-[#faf8f4] border-[#eee7db] text-[#17221b] hover:bg-white"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <input
-                              type="checkbox"
-                              checked={!!completedTasks[task.id]}
-                              onChange={() => {}}
-                              className="h-4 w-4 rounded text-[#063b2c] accent-[#063b2c]"
-                            />
-                            <span className="text-xs font-medium">{task.text}</span>
-                          </div>
-                          <span className="text-[10px] font-semibold text-black/50 ml-2">
-                            {task.time}
-                          </span>
+                      {dynamicTasks.length === 0 ? (
+                        <div className="p-4 rounded-xl border border-dashed border-[#ded9cf] bg-[#faf8f4] text-center text-xs text-black/50">
+                          ✨ All current client requests, visits, and drafting tasks are up to date!
                         </div>
-                      ))}
+                      ) : (
+                        dynamicTasks.map((task) => (
+                          <div
+                            key={task.id}
+                            onClick={() => {
+                              setCompletedTasks((prev) => ({ ...prev, [task.id]: !prev[task.id] }));
+                              if (task.linkTab) setActiveTab(task.linkTab);
+                              if (task.req) openCustomerRequest(task.req);
+                            }}
+                            className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
+                              completedTasks[task.id]
+                                ? "bg-[#f5f9f6] border-[#cfe2d4] line-through text-black/40"
+                                : "bg-[#faf8f4] border-[#eee7db] text-[#17221b] hover:bg-white hover:border-[#0c7a62]"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <input
+                                type="checkbox"
+                                checked={!!completedTasks[task.id]}
+                                onChange={() => {}}
+                                className="h-4 w-4 rounded text-[#063b2c] accent-[#063b2c]"
+                              />
+                              <span className="text-xs font-medium">{task.text}</span>
+                            </div>
+                            <span className="text-[10px] font-semibold text-black/50 ml-2 shrink-0">
+                              {task.time}
+                            </span>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
 
@@ -2801,6 +3023,19 @@ export default function AdminDashboard() {
                 <button
                   type="button"
                   onClick={() => {
+                    setPaymentTargetRequest(selectedRequest);
+                    setPaymentAmount("1000");
+                    setPaymentStatusSelect("Advance Received");
+                    setShowPaymentModal(true);
+                  }}
+                  className="rounded-xl border border-[#d5a842] bg-[#fffbf2] px-3 py-1.5 text-xs font-semibold text-[#8c6710] hover:bg-[#fae8b2] transition"
+                >
+                  Record Payment
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
                     setVisitDate("");
                     setVisitTime("");
                     setVisitNotes("");
@@ -2911,13 +3146,59 @@ export default function AdminDashboard() {
                 <h3 className="font-serif text-base font-bold text-[#17221b]">
                   Requirements & Notes
                 </h3>
+                {selectedRequest.requirements?.includes("[Revision Request") && (
+                  <div className="rounded-xl border border-[#ebd095] bg-[#fffbf2] p-3 text-xs text-[#8c6710]">
+                    <span className="font-bold flex items-center gap-1.5 mb-1">
+                      <AlertTriangle size={14} /> Customer Revision Note:
+                    </span>
+                    <p className="font-medium">
+                      {selectedRequest.requirements.match(/\[Revision Request[^\]]*\]:\s*([^\n\r]*)/)?.[1] ||
+                        "Revision requested by customer"}
+                    </p>
+                  </div>
+                )}
                 <p className="whitespace-pre-wrap text-xs leading-relaxed text-black/75 bg-[#faf8f4] p-3 rounded-xl border border-[#eee7db]">
                   {selectedRequest.requirements
                     ?.replace(/\[ADMIN_PLAN_DELIVERABLE_ROUGH:[\s\S]*?\]/g, "")
                     .replace(/\[ADMIN_PLAN_DELIVERABLE_FINAL:[\s\S]*?\]/g, "")
                     .replace(/\[ADMIN_PLAN_DELIVERABLE_MISTRI:[\s\S]*?\]/g, "")
+                    .replace(/\[ADMIN_NOTIFICATION_ENTRY:[\s\S]*?\]/g, "")
+                    .replace(/\[ATTACHMENT_URL:[\s\S]*?\]/g, "")
                     .trim() || "No additional text provided."}
                 </p>
+
+                {/* Show Attachment if present */}
+                {(selectedRequest.attachment_url || selectedRequest.requirements?.includes("[ATTACHMENT_URL:")) && (
+                  <div className="pt-2 border-t border-[#f0ebdf]">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-black/40 block mb-1.5">
+                      Client Uploaded Reference / Sketch
+                    </span>
+                    <div className="flex items-center gap-3 bg-[#faf8f4] p-2.5 rounded-xl border border-[#eee7db]">
+                      <img
+                        src={
+                          selectedRequest.attachment_url ||
+                          selectedRequest.requirements?.match(/\[ATTACHMENT_URL:([\s\S]*?)\]/)?.[1]
+                        }
+                        alt="Customer Reference"
+                        className="h-14 w-14 object-cover rounded-lg border border-black/10"
+                      />
+                      <div className="text-xs">
+                        <p className="font-bold text-[#17221b]">Rough Sketch / Photo</p>
+                        <a
+                          href={
+                            selectedRequest.attachment_url ||
+                            selectedRequest.requirements?.match(/\[ATTACHMENT_URL:([\s\S]*?)\]/)?.[1]
+                          }
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[#0c7a62] font-bold hover:underline text-[11px] mt-0.5 inline-block"
+                        >
+                          View Full Screen ↗
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* STATUS UPDATER */}

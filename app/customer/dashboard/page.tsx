@@ -744,9 +744,7 @@ export default function CustomerDashboardPage() {
     // 3. Fetch Customer Requests for this Authenticated User
     let reqQuery = supabase
       .from("customer_requests")
-      .select(
-        "id, customer_user_id, full_name, mobile, village_city, district, plot_length, plot_width, measurement_unit, floors, requirements, vastu_consultation, status, attachment_url, created_at"
-      );
+      .select("*");
 
     if (currentUserId && mobileVal) {
       reqQuery = reqQuery.or(`customer_user_id.eq.${currentUserId},mobile.eq.${mobileVal}`);
@@ -767,8 +765,9 @@ export default function CustomerDashboardPage() {
       setRequestSubmitted(true);
       setRequestStatus(topReq.status || "New Request");
 
-      if (topReq.attachment_url) {
-        setUploadedSketch(topReq.attachment_url);
+      const sketchTagMatch = topReq.requirements?.match(/\[ATTACHMENT_URL:([\s\S]*?)\]/);
+      if (topReq.attachment_url || sketchTagMatch) {
+        setUploadedSketch(topReq.attachment_url || sketchTagMatch?.[1]);
         setUploadedSketchName("Customer Uploaded Rough Map");
       }
 
@@ -1242,13 +1241,25 @@ export default function CustomerDashboardPage() {
         setUploadedSketch(dataUrl);
         setUploadedSketchName(file.name);
         if (customerRequest?.id) {
-          await supabase
+          const { error: attErr } = await supabase
             .from("customer_requests")
             .update({
               attachment_url: dataUrl,
               updated_at: new Date().toISOString(),
             })
             .eq("id", customerRequest.id);
+
+          if (attErr) {
+            let reqs = customerRequest.requirements || "";
+            reqs = reqs.replace(/\[ATTACHMENT_URL:[\s\S]*?\]/g, "").trim();
+            await supabase
+              .from("customer_requests")
+              .update({
+                requirements: `${reqs}\n\n[ATTACHMENT_URL:${dataUrl}]`,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", customerRequest.id);
+          }
         }
         alert(
           "Rough sketch attached successfully! Our planning team will review it."

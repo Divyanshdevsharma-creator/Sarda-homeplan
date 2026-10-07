@@ -411,25 +411,43 @@ export default function CustomerRequestPage() {
       console.warn("customer_profiles upsert note:", profErr);
     }
 
-    const { data, error } = await supabase
+    const reqRequirementsWithSketch = attachedDataUrl
+      ? `${finalRequirements}\n\n[ATTACHMENT_URL:${attachedDataUrl}]`
+      : finalRequirements;
+
+    const baseInsertData = {
+      full_name: fullName.trim(),
+      mobile: mobile.trim(),
+      village_city: villageCity.trim(),
+      district: district.trim(),
+      plot_length: plotLength.trim(),
+      plot_width: plotWidth.trim(),
+      measurement_unit: measurementUnit,
+      floors,
+      requirements: reqRequirementsWithSketch,
+      vastu_consultation: vastuConsultation || "Not specified",
+      customer_user_id: userId,
+      user_id: userId,
+    };
+
+    let { data, error } = await supabase
       .from("customer_requests")
       .insert({
-        full_name: fullName.trim(),
-        mobile: mobile.trim(),
-        village_city: villageCity.trim(),
-        district: district.trim(),
-        plot_length: plotLength.trim(),
-        plot_width: plotWidth.trim(),
-        measurement_unit: measurementUnit,
-        floors,
-        requirements: finalRequirements,
-        vastu_consultation: vastuConsultation || "Not specified",
-        customer_user_id: userId,
-        user_id: userId,
+        ...baseInsertData,
         attachment_url: attachedDataUrl || null,
       })
       .select("id")
       .single();
+
+    if (error && (error.message.includes("attachment_url") || error.code === "PGRST204")) {
+      const retry = await supabase
+        .from("customer_requests")
+        .insert(baseInsertData)
+        .select("id")
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       console.error("Request submission error:", error);
