@@ -389,6 +389,7 @@ export default function Home() {
   const [currentUser, setCurrentUser] = useState<any>(null);
 
   // Modals & Popups
+  const [loginRoleModalOpen, setLoginRoleModalOpen] = useState(false);
   const [authPromptModalOpen, setAuthPromptModalOpen] = useState(false);
   const [quickInquiryOpen, setQuickInquiryOpen] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
@@ -726,22 +727,23 @@ export default function Home() {
               <Search size={15} />
             </button>
 
-            {/* CUSTOMER LOGIN LINK (Directly goes to /customer/login or /customer/dashboard) */}
-            <Link
-              href={currentUser ? "/customer/dashboard" : "/customer/login"}
+            {/* LOGIN BUTTON: Opens modal to choose Customer Login or Admin Login */}
+            <button
+              type="button"
+              onClick={() => setLoginRoleModalOpen(true)}
               className="flex items-center gap-1.5 rounded-full border border-black/15 bg-white/80 px-4 py-2 text-xs font-bold text-[#17221b] shadow-sm transition hover:bg-white hover:border-[#063b2c]"
             >
               <LogIn size={13} className="text-[#063b2c]" />
               <span>
                 {currentUser
                   ? lang === "hi"
-                    ? "डैशबोर्ड"
-                    : "Dashboard"
+                    ? "खाता / लॉगिन"
+                    : "Account / Login"
                   : lang === "hi"
                   ? "लॉगिन"
                   : "Login"}
               </span>
-            </Link>
+            </button>
 
             {/* Primary CTA Button: Checks Auth First */}
             <button
@@ -852,22 +854,25 @@ export default function Home() {
                 {lang === "hi" ? "संपर्क" : "Contact"}
               </a>
               <div className="pt-2 flex flex-col gap-2">
-                <Link
-                  href={currentUser ? "/customer/dashboard" : "/customer/login"}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-black/15 bg-white py-2.5 text-xs font-bold text-black/80"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setLoginRoleModalOpen(true);
+                  }}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-black/15 bg-white py-2.5 text-xs font-bold text-black/80 shadow-sm"
                 >
-                  <LogIn size={14} />
+                  <LogIn size={14} className="text-[#063b2c]" />
                   <span>
                     {currentUser
                       ? lang === "hi"
-                        ? "कस्टमर डैशबोर्ड"
-                        : "Customer Dashboard"
+                        ? "खाता / लॉगिन"
+                        : "Account / Login"
                       : lang === "hi"
-                      ? "कस्टमर लॉगिन"
-                      : "Customer Login"}
+                      ? "लॉगिन (Customer / Admin)"
+                      : "Login (Customer / Admin)"}
                   </span>
-                </Link>
+                </button>
                 <button
                   type="button"
                   onClick={() => {
@@ -2359,6 +2364,147 @@ export default function Home() {
           </div>
         </div>
       </footer>
+
+      {/* =====================================================================
+          12.5. LOGIN ROLE SELECTION MODAL ("Login as Customer or Admin")
+      ===================================================================== */}
+      {loginRoleModalOpen && (
+        <div
+          className="fixed inset-0 z-[170] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          onClick={() => setLoginRoleModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-3xl bg-white p-6 md:p-8 shadow-2xl border border-[#e8dfcf] relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between border-b border-[#f0ebdf] pb-4">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#9b7732]">
+                  SARDA HOMEPLAN PORTAL
+                </span>
+                <h3 className="font-serif text-2xl font-bold text-[#11241c] mt-0.5">
+                  {lang === "hi"
+                    ? "लॉगिन पोर्टल चुनें"
+                    : lang === "hinglish"
+                    ? "Login Portal Select Karein"
+                    : "Choose Login Portal"}
+                </h3>
+                <p className="text-xs text-black/60 mt-1">
+                  {lang === "hi"
+                    ? "कृपया चुनें कि आप किस रूप में लॉगिन करना चाहते हैं:"
+                    : lang === "hinglish"
+                    ? "Chunein ki aap Customer ke roop me login karna chahte hain ya Admin ke roop me:"
+                    : "Select whether you want to access Customer Portal or Studio Admin:"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLoginRoleModalOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-black/5 text-black/60 hover:bg-black/10 hover:text-black transition text-lg font-bold"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Role Options */}
+            <div className="mt-5 space-y-3.5">
+              {/* Option 1: Customer Login */}
+              <Link
+                href={currentUser ? "/customer/dashboard" : "/customer/login"}
+                onClick={() => setLoginRoleModalOpen(false)}
+                className="group relative flex items-start gap-4 rounded-2xl border-2 border-[#eee7db] bg-[#faf8f4] p-4 transition hover:border-[#0c7a62] hover:bg-white hover:shadow-md"
+              >
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#0c7a62] to-[#063b2c] text-white shadow-md group-hover:scale-105 transition-transform">
+                  <User size={22} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="font-serif text-base font-bold text-[#11241c] group-hover:text-[#0c7a62] transition-colors">
+                      {lang === "hi"
+                        ? "कस्टमर लॉगिन (Customer Login)"
+                        : "Customer Login"}
+                    </h4>
+                    <span className="rounded-full bg-[#0c7a62]/10 px-2 py-0.5 text-[10px] font-bold text-[#0c7a62]">
+                      {lang === "hi" ? "मकान मालिक / क्लाइंट" : "Homeowner & Client"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-black/70 mt-1 leading-relaxed">
+                    {lang === "hi"
+                      ? "नक्शा प्रगति ट्रैक करें, साइट विज़िट बुक करें, 2D/3D ड्राफ्ट अप्रूव करें और फाइनल फाइल्स डाउनलोड करें।"
+                      : lang === "hinglish"
+                      ? "House map drafting progress dekhein, site visit schedule karein, revisions mangein aur blueprint download karein."
+                      : "Track plan progress, schedule plot visits, review draft house maps, and download blueprints."}
+                  </p>
+                  <div className="mt-2.5 flex items-center gap-1.5 text-xs font-bold text-[#0c7a62]">
+                    <span>
+                      {currentUser
+                        ? (lang === "hi" ? "कस्टमर डैशबोर्ड खोलें" : "Open Customer Dashboard")
+                        : (lang === "hi" ? "कस्टमर के रूप में लॉगिन करें" : "Login as Customer")}
+                    </span>
+                    <ArrowRight size={13} className="group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+              </Link>
+
+              {/* Option 2: Admin Login */}
+              <Link
+                href="/admin/login"
+                onClick={() => setLoginRoleModalOpen(false)}
+                className="group relative flex items-start gap-4 rounded-2xl border-2 border-[#eee7db] bg-[#faf8f4] p-4 transition hover:border-[#9b7732] hover:bg-white hover:shadow-md"
+              >
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#9b7732] to-[#6d511e] text-white shadow-md group-hover:scale-105 transition-transform">
+                  <ShieldCheck size={22} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="font-serif text-base font-bold text-[#11241c] group-hover:text-[#9b7732] transition-colors">
+                      {lang === "hi"
+                        ? "एडमिन लॉगिन (Admin Login)"
+                        : "Admin Login"}
+                    </h4>
+                    <span className="rounded-full bg-[#9b7732]/10 px-2 py-0.5 text-[10px] font-bold text-[#9b7732]">
+                      {lang === "hi" ? "स्टूडियो ऑपरेशन्स" : "Studio Management"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-black/70 mt-1 leading-relaxed">
+                    {lang === "hi"
+                      ? "स्टूडियो प्रबंधन, सभी कस्टमर इन्क्वायरीज़, साइट विज़िट, और ब्लूप्रिंट ड्राफ्ट अपलोड हैंडल करें।"
+                      : lang === "hinglish"
+                      ? "Studio operations, client intake requests, site visit schedule aur blueprint files manage karein."
+                      : "Studio operations, client intake requests, site visits, and blueprint uploads."}
+                  </p>
+                  <div className="mt-2.5 flex items-center gap-1.5 text-xs font-bold text-[#9b7732]">
+                    <span>
+                      {lang === "hi" ? "एडमिन के रूप में लॉगिन करें" : "Login as Admin"}
+                    </span>
+                    <ArrowRight size={13} className="group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+              </Link>
+            </div>
+
+            {/* Footer with Signup Link */}
+            <div className="mt-5 border-t border-[#f0ebdf] pt-4 text-center">
+              <p className="text-xs text-black/70">
+                {lang === "hi"
+                  ? "नया ग्राहक खाता बनाना चाहते हैं? "
+                  : lang === "hinglish"
+                  ? "Naya customer account banana chahte hain? "
+                  : "Need a new homeowner account? "}
+                <Link
+                  href="/customer/signup"
+                  onClick={() => setLoginRoleModalOpen(false)}
+                  className="font-bold text-[#0c7a62] hover:underline"
+                >
+                  {lang === "hi" ? "यहाँ रजिस्टर करें" : "Register here"}
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* =====================================================================
           13. AUTH PROMPT GATEWAY MODAL ("Account Required to Submit")
