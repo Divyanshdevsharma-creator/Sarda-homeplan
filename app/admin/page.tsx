@@ -43,6 +43,7 @@ import {
   Compass,
   UserPlus,
   CalendarClock,
+  Mail,
 } from "lucide-react";
 
 import { useEffect, useState, useMemo, type ComponentType } from "react";
@@ -56,6 +57,13 @@ import {
   generateAdminNotifications,
   AdminNotificationItem,
 } from "@/lib/notifications/adminNotifications";
+
+function getAdminInitials(name?: string | null): string {
+  if (!name || !name.trim()) return "AD";
+  const trimmed = name.trim();
+  // Example requirement: Dinesh Kumar Sharma → DI
+  return trimmed.slice(0, 2).toUpperCase();
+}
 
 type IconType = ComponentType<{
   size?: number;
@@ -259,10 +267,12 @@ export default function AdminDashboard() {
     role?: string;
     email?: string;
     mobile?: string;
+    avatar_url?: string;
   }>({
     full_name: "Admin Office",
     role: "Super Admin",
   });
+  const [adminAvatar, setAdminAvatar] = useState<string>("");
 
   // Multi-Admin Role Management State
   const [adminTeam, setAdminTeam] = useState<any[]>([]);
@@ -563,7 +573,7 @@ export default function AdminDashboard() {
     const supabase = createClient();
     const { data, error } = await supabase
       .from("customer_profiles")
-      .select("id, full_name, mobile, village_city, district, created_at, updated_at")
+      .select("*")
       .order("created_at", { ascending: false });
 
     if (!error && data) {
@@ -653,13 +663,33 @@ export default function AdminDashboard() {
         localStorage.getItem("sarada_admin_email") ||
         localStorage.getItem("sarda_admin_email") ||
         "";
+      const storedAvatar =
+        localStorage.getItem("sarada_admin_avatar") ||
+        (storedEmail ? localStorage.getItem(`sarada_admin_avatar_${storedEmail}`) : "");
+      if (storedAvatar) {
+        setAdminAvatar(storedAvatar);
+      }
       if (storedName) {
         setAdminProfile({
           full_name: storedName,
           role: storedRole || "Super Admin",
           email: storedEmail || "admin@saradahomeplan.com",
+          avatar_url: storedAvatar || undefined,
         });
       }
+    }
+
+    const loadAvatarFromStorage = () => {
+      if (typeof window !== "undefined") {
+        const av =
+          localStorage.getItem("sarada_admin_avatar") ||
+          (storedEmail ? localStorage.getItem(`sarada_admin_avatar_${storedEmail}`) : "") ||
+          "";
+        setAdminAvatar(av);
+      }
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("admin_avatar_updated", loadAvatarFromStorage);
     }
 
     const verifyAndFetchAdmin = async () => {
@@ -677,7 +707,7 @@ export default function AdminDashboard() {
       try {
         let query = supabase
           .from("admins")
-          .select("id, full_name, role, email, mobile, is_active");
+          .select("*");
 
         if (storedEmail) {
           query = query.eq("email", storedEmail);
@@ -688,6 +718,18 @@ export default function AdminDashboard() {
         const { data } = await query.maybeSingle();
         if (data) {
           setAdminProfile(data);
+          if (data.avatar_url) {
+            setAdminAvatar(data.avatar_url);
+            if (typeof window !== "undefined") {
+              localStorage.setItem("sarada_admin_avatar", data.avatar_url);
+            }
+          } else if (typeof window !== "undefined") {
+            const localAv =
+              localStorage.getItem(`sarada_admin_avatar_${data.id}`) ||
+              localStorage.getItem(`sarada_admin_avatar_${data.email}`) ||
+              localStorage.getItem("sarada_admin_avatar");
+            if (localAv) setAdminAvatar(localAv);
+          }
           if (typeof window !== "undefined") {
             if (data.full_name) localStorage.setItem("sarada_admin_name", data.full_name);
             if (data.role) localStorage.setItem("sarada_admin_role", data.role);
@@ -698,6 +740,12 @@ export default function AdminDashboard() {
 
     verifyAndFetchAdmin();
     fetchAdminTeam();
+
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("admin_avatar_updated", loadAvatarFromStorage);
+      }
+    };
   }, [router]);
 
   // Super Admin: Add New Administrator
@@ -1659,6 +1707,7 @@ export default function AdminDashboard() {
           id: cp.id,
           name: cp.full_name || "Registered Customer",
           mobile: cp.mobile || "",
+          email: cp.email || null,
           village: cp.village_city || "",
           district: cp.district || "",
           projectsCount: 0,
@@ -1692,12 +1741,16 @@ export default function AdminDashboard() {
         item.requestsCount += 1;
         item.totalRequests += 1;
         item.latestStatus = r.status || item.latestStatus;
+        if (!item.email && r.email) {
+          item.email = r.email;
+        }
       } else {
         const key = cleanMobile || r.customer_user_id || `req-${r.id}`;
         map.set(key, {
           id: r.customer_user_id || `req-${r.id}`,
           name: r.full_name,
           mobile: r.mobile,
+          email: r.email || null,
           village: r.village_city,
           district: r.district,
           projectsCount: 0,
@@ -2057,7 +2110,25 @@ export default function AdminDashboard() {
         </nav>
 
         {/* SIDEBAR FOOTER MOTIF (PINNED BOTTOM) */}
-        <div className="shrink-0 p-3 border-t border-white/10">
+        <div className="shrink-0 p-3 border-t border-white/10 space-y-2.5">
+          {/* ARCHITECTURAL HOUSE MOTIF CARD */}
+          <div className="overflow-hidden rounded-xl border border-white/15 bg-[#094331] shadow-sm transition hover:border-[#f4cf72]/40 group">
+            <div className="relative h-20 w-full overflow-hidden bg-[#073829]">
+              <Image
+                src="/home.png"
+                alt="Designing Your Dream Home"
+                fill
+                sizes="260px"
+                className="object-cover object-center transition duration-500 group-hover:scale-105"
+              />
+            </div>
+            <div className="p-2 text-center bg-[#073829] border-t border-white/10">
+              <p className="font-serif text-[11px] font-bold text-[#f5d58f] tracking-wide leading-tight">
+                Designing Your Dream Home
+              </p>
+            </div>
+          </div>
+
           <div className="rounded-xl bg-[#0e4836] p-2.5 text-xs border border-white/10">
             <p className="font-semibold text-[#f5d58f] flex items-center gap-1.5 text-[11px]">
               <Compass size={13} />
@@ -2071,7 +2142,7 @@ export default function AdminDashboard() {
           <button
             type="button"
             onClick={handleLogout}
-            className="mt-2.5 flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-white/20 text-xs font-semibold text-white transition hover:bg-white/10"
+            className="flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-white/20 text-xs font-semibold text-white transition hover:bg-white/10"
           >
             <LogOut size={15} />
             <span>Sign Out</span>
@@ -2161,9 +2232,19 @@ export default function AdminDashboard() {
               className="flex items-center gap-2.5 rounded-2xl p-1.5 hover:bg-black/5 transition group"
               title="View Admin Profile & Security Settings"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#d7b56d] text-sm font-bold text-[#17382c] shadow-sm group-hover:ring-2 group-hover:ring-[#063b2c] transition">
-                {adminProfile?.full_name ? adminProfile.full_name.slice(0, 2).toUpperCase() : "SH"}
-              </div>
+              {adminAvatar ? (
+                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#d7b56d]/60 shadow-sm group-hover:ring-2 group-hover:ring-[#063b2c] transition">
+                  <img
+                    src={adminAvatar}
+                    alt={adminProfile?.full_name || "Admin"}
+                    className="h-full w-full object-cover rounded-full"
+                  />
+                </div>
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#d7b56d] text-sm font-bold text-[#17382c] shadow-sm group-hover:ring-2 group-hover:ring-[#063b2c] transition">
+                  {getAdminInitials(adminProfile?.full_name)}
+                </div>
+              )}
               <div className="hidden text-left leading-tight sm:block">
                 <p className="text-xs font-bold text-[#17221b] group-hover:text-[#063b2c] transition">
                   {adminProfile?.full_name || "Admin Office"}
@@ -3354,29 +3435,75 @@ export default function AdminDashboard() {
 
                         {/* Quick Contact & View Profile Action (Section 3) */}
                         <div className="space-y-2 pt-1 border-t border-[#f0ebdf]">
-                          <div className="flex items-center gap-2">
-                            {cust.mobile && (
+                          <div className="grid grid-cols-3 gap-1.5">
+                            {/* WhatsApp */}
+                            {cust.mobile ? (
                               <a
                                 href={`https://wa.me/91${(cust.mobile || "").replace(/\D/g, "").slice(-10)}?text=${encodeURIComponent(
-                                  `Namaste ${cust.name} ji, Sarda Homeplan se sampark kar rahe hain.`
+                                  `Namaste ${cust.name || "Ji"}, Sarda Homeplan se sampark kar rahe hain.`
                                 )}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#25D366] py-1.5 text-xs font-bold text-white hover:bg-[#1fb355] transition"
+                                className="inline-flex items-center justify-center gap-1 rounded-xl bg-[#25D366] py-1.5 text-[11px] font-bold text-white hover:bg-[#1fb355] transition shadow-xs"
+                                title="Chat on WhatsApp"
                               >
-                                <MessageCircle size={14} />
+                                <MessageCircle size={13} />
                                 <span>WhatsApp</span>
                               </a>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled
+                                className="inline-flex items-center justify-center gap-1 rounded-xl border border-[#ded9cf] bg-[#f8f5ee] py-1.5 text-[11px] font-medium text-black/35 cursor-not-allowed"
+                                title="No mobile available"
+                              >
+                                <MessageCircle size={13} />
+                                <span>WhatsApp</span>
+                              </button>
                             )}
 
-                            {cust.mobile && (
+                            {/* Email */}
+                            {cust.email ? (
+                              <a
+                                href={`mailto:${cust.email}`}
+                                className="inline-flex items-center justify-center gap-1 rounded-xl border border-[#063b2c]/30 bg-[#f3f8f5] py-1.5 text-[11px] font-bold text-[#063b2c] hover:bg-[#063b2c] hover:text-[#f4cf72] transition shadow-xs"
+                                title={`Email ${cust.email}`}
+                              >
+                                <Mail size={13} />
+                                <span>Email</span>
+                              </a>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled
+                                className="inline-flex items-center justify-center gap-1 rounded-xl border border-[#ded9cf] bg-[#f8f5ee] py-1.5 text-[11px] font-medium text-black/35 cursor-not-allowed"
+                                title="No email available"
+                              >
+                                <Mail size={13} />
+                                <span>Email</span>
+                              </button>
+                            )}
+
+                            {/* Call */}
+                            {cust.mobile ? (
                               <a
                                 href={`tel:${cust.mobile}`}
-                                className="inline-flex items-center justify-center rounded-xl border border-[#ded9cf] p-1.5 text-black/70 hover:bg-[#faf8f4] transition"
-                                title="Call"
+                                className="inline-flex items-center justify-center gap-1 rounded-xl border border-[#ded9cf] bg-white py-1.5 text-[11px] font-bold text-[#17221b] hover:bg-[#faf8f4] hover:border-[#063b2c]/40 transition shadow-xs"
+                                title={`Call ${cust.mobile}`}
                               >
-                                <Phone size={15} />
+                                <Phone size={13} />
+                                <span>Call</span>
                               </a>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled
+                                className="inline-flex items-center justify-center gap-1 rounded-xl border border-[#ded9cf] bg-[#f8f5ee] py-1.5 text-[11px] font-medium text-black/35 cursor-not-allowed"
+                                title="No mobile available"
+                              >
+                                <Phone size={13} />
+                                <span>Call</span>
+                              </button>
                             )}
                           </div>
 
@@ -4247,9 +4374,19 @@ export default function AdminDashboard() {
                 <div className="rounded-2xl border border-[#ded9cf] bg-gradient-to-r from-[#fbf9f4] to-[#f4eee2] p-5 shadow-sm">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3.5">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#063b2c] text-xl font-bold font-serif text-[#f4cf72] shadow-md">
-                        {adminProfile?.full_name ? adminProfile.full_name.slice(0, 2).toUpperCase() : "AD"}
-                      </div>
+                      {adminAvatar ? (
+                        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-[#063b2c] shadow-md">
+                          <img
+                            src={adminAvatar}
+                            alt={adminProfile?.full_name || "Admin"}
+                            className="h-full w-full object-cover rounded-full"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#063b2c] text-lg font-bold font-serif text-[#f4cf72] shadow-md">
+                          {getAdminInitials(adminProfile?.full_name)}
+                        </div>
+                      )}
                       <div>
                         <div className="flex items-center gap-2">
                           <h3 className="font-serif text-lg font-bold text-[#17221b]">

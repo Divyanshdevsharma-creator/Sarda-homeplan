@@ -630,30 +630,75 @@ export default function AdminCustomersDirectoryPage() {
 
                     {/* Footer Actions: WhatsApp / Call + [ View Profile ] */}
                     <div className="space-y-2 pt-1 border-t border-[#f0ebdf]">
-                      <div className="flex items-center gap-2">
-                        {cust.mobile && (
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {/* WhatsApp */}
+                        {cust.mobile ? (
                           <a
                             href={`https://wa.me/91${cust.mobile.replace(/\D/g, "").slice(-10)}?text=${encodeURIComponent(
                               `Namaste ${cust.full_name || "Ji"}, Sarda Homeplan se sampark kar rahe hain.`
                             )}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex-1 inline-flex items-center justify-center gap-1 rounded-xl bg-[#25D366] py-1.5 text-[11px] font-bold text-white hover:bg-[#1fb355] transition"
+                            className="inline-flex items-center justify-center gap-1 rounded-xl bg-[#25D366] py-1.5 text-[11px] font-bold text-white hover:bg-[#1fb355] transition shadow-xs"
                             title="Chat on WhatsApp"
                           >
                             <MessageCircle size={13} />
                             <span>WhatsApp</span>
                           </a>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled
+                            className="inline-flex items-center justify-center gap-1 rounded-xl border border-[#ded9cf] bg-[#f8f5ee] py-1.5 text-[11px] font-medium text-black/35 cursor-not-allowed"
+                            title="No mobile available"
+                          >
+                            <MessageCircle size={13} />
+                            <span>WhatsApp</span>
+                          </button>
                         )}
 
-                        {cust.mobile && (
+                        {/* Email */}
+                        {cust.email ? (
+                          <a
+                            href={`mailto:${cust.email}`}
+                            className="inline-flex items-center justify-center gap-1 rounded-xl border border-[#063b2c]/30 bg-[#f3f8f5] py-1.5 text-[11px] font-bold text-[#063b2c] hover:bg-[#063b2c] hover:text-[#f4cf72] transition shadow-xs"
+                            title={`Email ${cust.email}`}
+                          >
+                            <Mail size={13} />
+                            <span>Email</span>
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled
+                            className="inline-flex items-center justify-center gap-1 rounded-xl border border-[#ded9cf] bg-[#f8f5ee] py-1.5 text-[11px] font-medium text-black/35 cursor-not-allowed"
+                            title="No email available"
+                          >
+                            <Mail size={13} />
+                            <span>Email</span>
+                          </button>
+                        )}
+
+                        {/* Call */}
+                        {cust.mobile ? (
                           <a
                             href={`tel:${cust.mobile}`}
-                            className="inline-flex items-center justify-center rounded-xl border border-[#ded9cf] p-1.5 text-black/70 hover:bg-[#faf8f4] transition"
-                            title="Call Customer"
+                            className="inline-flex items-center justify-center gap-1 rounded-xl border border-[#ded9cf] bg-white py-1.5 text-[11px] font-bold text-[#17221b] hover:bg-[#faf8f4] hover:border-[#063b2c]/40 transition shadow-xs"
+                            title={`Call ${cust.mobile}`}
                           >
-                            <Phone size={14} />
+                            <Phone size={13} />
+                            <span>Call</span>
                           </a>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled
+                            className="inline-flex items-center justify-center gap-1 rounded-xl border border-[#ded9cf] bg-[#f8f5ee] py-1.5 text-[11px] font-medium text-black/35 cursor-not-allowed"
+                            title="No mobile available"
+                          >
+                            <Phone size={13} />
+                            <span>Call</span>
+                          </button>
                         )}
                       </div>
 

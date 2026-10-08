@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -21,8 +21,16 @@ import {
   KeyRound,
   Eye,
   EyeOff,
+  Camera,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+
+function getAdminInitials(name?: string | null): string {
+  if (!name || !name.trim()) return "AD";
+  const trimmed = name.trim();
+  // Example requirement: Dinesh Kumar Sharma → DI
+  return trimmed.slice(0, 2).toUpperCase();
+}
 
 export default function AdminProfilePage() {
   const router = useRouter();
@@ -31,6 +39,12 @@ export default function AdminProfilePage() {
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+
+  // Avatar Photo States
+  const [avatarUrl, setAvatarUrl] = useState<string>("");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarStatus, setAvatarStatus] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Edit fields
   const [fullName, setFullName] = useState("");
@@ -80,12 +94,22 @@ export default function AdminProfilePage() {
           .eq("email", adminEmail)
           .maybeSingle();
 
+        let currentAvatar = "";
         if (adminRecord) {
           setAdmin(adminRecord);
           setFullName(adminRecord.full_name || "Admin Office");
           setEmail(adminRecord.email || adminEmail);
           setMobile(adminRecord.mobile || "9876543210");
           setRole(adminRecord.role || "Super Admin");
+          if (adminRecord.avatar_url) {
+            currentAvatar = adminRecord.avatar_url;
+          } else if (typeof window !== "undefined") {
+            currentAvatar =
+              localStorage.getItem(`sarada_admin_avatar_${adminRecord.id}`) ||
+              localStorage.getItem(`sarada_admin_avatar_${adminRecord.email}`) ||
+              localStorage.getItem("sarada_admin_avatar") ||
+              "";
+          }
         } else {
           // Fallback first active admin
           const { data: firstAdmin } = await supabase
@@ -100,7 +124,20 @@ export default function AdminProfilePage() {
             setEmail(firstAdmin.email || "admin@saradahomeplan.com");
             setMobile(firstAdmin.mobile || "9876543210");
             setRole(firstAdmin.role || "Super Admin");
+            if (firstAdmin.avatar_url) {
+              currentAvatar = firstAdmin.avatar_url;
+            } else if (typeof window !== "undefined") {
+              currentAvatar =
+                localStorage.getItem(`sarada_admin_avatar_${firstAdmin.id}`) ||
+                localStorage.getItem(`sarada_admin_avatar_${firstAdmin.email}`) ||
+                localStorage.getItem("sarada_admin_avatar") ||
+                "";
+            }
           }
+        }
+
+        if (currentAvatar) {
+          setAvatarUrl(currentAvatar);
         }
       } catch (err: any) {
         console.error("Error loading admin profile:", err);
@@ -111,6 +148,163 @@ export default function AdminProfilePage() {
 
     loadAdminProfile();
   }, [supabase]);
+
+  // Handle Avatar Selection & Upload
+  const handleAvatarFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset input value so selecting the same file triggers onChange
+    e.target.value = "";
+
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    // Validation: Supported formats: JPG, JPEG, PNG, WEBP
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
+    const fileExt = file.name.split(".").pop()?.toLowerCase();
+    const isAllowedExt = fileExt && ["jpg", "jpeg", "png", "webp"].includes(fileExt);
+
+    if (!allowedTypes.includes(file.type) && !isAllowedExt) {
+      setErrorMessage("Supported formats: JPG, JPEG, PNG, WEBP.");
+      setAvatarStatus("Error: Unsupported format");
+      return;
+    }
+
+    // Validation: Size limit Max 5MB
+    const MAX_SIZE = 5 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      const sizeInMB = (file.size / (1024 * 1024)).toFixed(1);
+      setErrorMessage(`Image size must be less than 5MB (selected file is ${sizeInMB}MB).`);
+      setAvatarStatus("Error: Exceeds 5MB limit");
+      return;
+    }
+
+    setUploadingAvatar(true);
+    setAvatarStatus("Uploading...");
+
+    try {
+      let finalAvatarUrl = "";
+
+      // 1. Attempt upload to Supabase Storage bucket 'avatars'
+      try {
+        const ext = fileExt || "jpg";
+        const fileName = `admin_${admin?.id || "profile"}_${Date.now()}.${ext}`;
+        const filePath = `avatars/${fileName}`;
+
+        const { data: uploadData, error: uploadErr } = await supabase.storage
+          .from("avatars")
+          .upload(filePath, file, { upsert: true, contentType: file.type || "image/jpeg" });
+
+        if (!uploadErr && uploadData) {
+          const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(filePath);
+          if (urlData?.publicUrl) {
+            finalAvatarUrl = urlData.publicUrl;
+          }
+        }
+      } catch (storageErr) {
+        console.warn("Storage bucket upload fallback to local format:", storageErr);
+      }
+
+      // 2. If storage bucket is not configured, generate an optimized DataURL via Canvas
+      if (!finalAvatarUrl) {
+        finalAvatarUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const img = new window.Image();
+            img.onload = () => {
+              const canvas = document.createElement("canvas");
+              const maxDim = 400;
+              let w = img.width;
+              let h = img.height;
+              if (w > maxDim || h > maxDim) {
+                if (w > h) {
+                  h = Math.round((h * maxDim) / w);
+                  w = maxDim;
+                } else {
+                  w = Math.round((w * maxDim) / h);
+                  h = maxDim;
+                }
+              }
+              canvas.width = w;
+              canvas.height = h;
+              const ctx = canvas.getContext("2d");
+              ctx?.drawImage(img, 0, 0, w, h);
+              resolve(canvas.toDataURL("image/jpeg", 0.88));
+            };
+            img.onerror = () => resolve(event.target?.result as string);
+            img.src = event.target?.result as string;
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+
+      // 3. Saving state
+      setAvatarStatus("Saving...");
+
+      // Attempt DB update in admins table if column exists
+      if (admin?.id) {
+        try {
+          await supabase
+            .from("admins")
+            .update({ avatar_url: finalAvatarUrl })
+            .eq("id", admin.id);
+        } catch (_) {}
+      }
+
+      // Persist in localStorage
+      if (typeof window !== "undefined") {
+        localStorage.setItem("sarada_admin_avatar", finalAvatarUrl);
+        if (admin?.id) {
+          localStorage.setItem(`sarada_admin_avatar_${admin.id}`, finalAvatarUrl);
+        }
+        if (admin?.email) {
+          localStorage.setItem(`sarada_admin_avatar_${admin.email}`, finalAvatarUrl);
+        }
+        window.dispatchEvent(new Event("admin_avatar_updated"));
+      }
+
+      setAvatarUrl(finalAvatarUrl);
+      setAvatarStatus("Saved successfully");
+      setSuccessMessage("Profile photo saved successfully!");
+      setTimeout(() => setAvatarStatus(""), 4000);
+    } catch (err: any) {
+      console.error("Avatar upload error:", err);
+      setErrorMessage(err?.message || "Failed to upload profile photo.");
+      setAvatarStatus("Error: Upload failed");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  // Remove Avatar Photo
+  const handleRemoveAvatar = async () => {
+    setUploadingAvatar(true);
+    setAvatarStatus("Saving...");
+    try {
+      if (admin?.id) {
+        try {
+          await supabase.from("admins").update({ avatar_url: null }).eq("id", admin.id);
+        } catch (_) {}
+      }
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("sarada_admin_avatar");
+        if (admin?.id) localStorage.removeItem(`sarada_admin_avatar_${admin.id}`);
+        if (admin?.email) localStorage.removeItem(`sarada_admin_avatar_${admin.email}`);
+        window.dispatchEvent(new Event("admin_avatar_updated"));
+      }
+      setAvatarUrl("");
+      setAvatarStatus("Saved successfully");
+      setSuccessMessage("Profile photo removed.");
+      setTimeout(() => setAvatarStatus(""), 4000);
+    } catch (err: any) {
+      setErrorMessage("Failed to remove profile photo.");
+      setAvatarStatus("Error");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const handleSaveChanges = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -232,8 +426,16 @@ export default function AdminProfilePage() {
             <span className="text-black/30">/</span>
 
             <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#063b2c] text-[#f4cf72]">
-                <ShieldCheck size={16} />
+              <div className="relative h-8 w-8 overflow-hidden rounded-full border border-[#063b2c] bg-[#063b2c] flex items-center justify-center text-[#f4cf72] text-xs font-bold font-serif shadow-sm">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={fullName || "Admin Profile"}
+                    className="h-full w-full object-cover rounded-full"
+                  />
+                ) : (
+                  <span>{getAdminInitials(fullName)}</span>
+                )}
               </div>
               <h1 className="font-serif text-lg font-bold text-[#17221b]">
                 Admin Profile & Security
@@ -266,10 +468,84 @@ export default function AdminProfilePage() {
             {/* Left Card: Summary & Avatar */}
             <div className="rounded-3xl border border-[#ded9cf] bg-white p-6 shadow-sm space-y-6">
               <div className="text-center">
-                <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-3xl bg-[#063b2c] text-3xl font-bold font-serif text-[#f4cf72] shadow-md">
-                  {fullName ? fullName.slice(0, 2).toUpperCase() : "AD"}
+                {/* Circular Profile Photo with Camera / Edit Button */}
+                <div className="relative mx-auto h-28 w-28 group">
+                  <div className="h-28 w-28 overflow-hidden rounded-full border-4 border-[#063b2c] shadow-md bg-[#063b2c] flex items-center justify-center">
+                    {avatarUrl ? (
+                      <img
+                        src={avatarUrl}
+                        alt={fullName || "Admin Profile"}
+                        className="h-full w-full object-cover rounded-full"
+                      />
+                    ) : (
+                      <span className="font-serif text-3xl font-bold text-[#f4cf72]">
+                        {getAdminInitials(fullName)}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Camera / Edit Icon Button */}
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingAvatar}
+                    className="absolute bottom-0 right-0 flex h-9 w-9 items-center justify-center rounded-full bg-[#f4cf72] text-[#063b2c] shadow-md transition hover:scale-110 hover:bg-[#ffe39c] border-2 border-white disabled:opacity-60 cursor-pointer"
+                    title="Upload or change profile photo"
+                    aria-label="Upload or change profile photo"
+                  >
+                    <Camera size={16} />
+                  </button>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/jpg"
+                    className="hidden"
+                    onChange={handleAvatarFileSelect}
+                  />
                 </div>
-                <h2 className="mt-4 font-serif text-xl font-bold text-[#17221b]">
+
+                {/* Upload Status / Actions */}
+                <div className="mt-3 flex flex-col items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingAvatar}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[#063b2c] hover:text-[#0c7a62] transition cursor-pointer"
+                  >
+                    <Camera size={13} />
+                    <span>{avatarUrl ? "Change Photo" : "Upload Photo"}</span>
+                  </button>
+
+                  {avatarUrl && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveAvatar}
+                      disabled={uploadingAvatar}
+                      className="text-[11px] font-semibold text-red-600 hover:text-red-700 transition cursor-pointer"
+                    >
+                      Remove Photo
+                    </button>
+                  )}
+
+                  {avatarStatus && (
+                    <div
+                      className={`mt-1 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                        avatarStatus.includes("Error") || avatarStatus.includes("Failed")
+                          ? "bg-red-50 text-red-700 border border-red-200"
+                          : avatarStatus.includes("Saved")
+                          ? "bg-[#eaf5ed] text-[#0c7a62] border border-[#cbe1d1]"
+                          : "bg-[#faf8f3] text-[#9b7732] border border-[#e4dfd5]"
+                      }`}
+                    >
+                      {uploadingAvatar && <RefreshCw size={11} className="animate-spin" />}
+                      {avatarStatus.includes("Saved") && <CheckCircle2 size={11} />}
+                      <span>{avatarStatus}</span>
+                    </div>
+                  )}
+                </div>
+
+                <h2 className="mt-3 font-serif text-xl font-bold text-[#17221b]">
                   {fullName}
                 </h2>
                 <p className="text-xs font-semibold text-[#0c7a62]">{role}</p>

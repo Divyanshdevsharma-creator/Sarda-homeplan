@@ -31,6 +31,8 @@ ON CONFLICT (email) DO UPDATE SET
   role = EXCLUDED.role,
   mobile = EXCLUDED.mobile;
 
+ALTER TABLE public.admins ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+
 -- 2. CUSTOMER PROFILES TABLE
 CREATE TABLE IF NOT EXISTS public.customer_profiles (
   id UUID PRIMARY KEY,
