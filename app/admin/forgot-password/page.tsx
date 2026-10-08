@@ -65,7 +65,7 @@ export default function AdminForgotPasswordPage() {
       return;
     }
 
-    if (otpInput.trim() !== generatedOtp && otpInput.trim() !== "941820") {
+    if (otpInput.trim() !== generatedOtp) {
       setErrorMessage("Invalid security code. Please check and re-enter.");
       return;
     }
@@ -255,7 +255,7 @@ export default function AdminForgotPasswordPage() {
                   maxLength={6}
                   value={otpInput}
                   onChange={(e) => setOtpInput(e.target.value)}
-                  placeholder="e.g. 941820"
+                  placeholder="• • • • • •"
                   className="h-12 w-full rounded-xl border border-black/10 bg-[#faf9f5] text-center font-mono text-xl font-bold tracking-widest outline-none focus:border-[#173525] focus:bg-white"
                 />
               </div>

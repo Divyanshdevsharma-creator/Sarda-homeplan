@@ -49,14 +49,35 @@ CREATE TABLE IF NOT EXISTS public.customer_profiles (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Ensure newly added columns exist if table was already created
 ALTER TABLE public.customer_profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE public.customer_profiles ADD COLUMN IF NOT EXISTS email TEXT;
 ALTER TABLE public.customer_profiles ADD COLUMN IF NOT EXISTS landmark TEXT;
 ALTER TABLE public.customer_profiles ADD COLUMN IF NOT EXISTS pin_code TEXT;
 ALTER TABLE public.customer_profiles ADD COLUMN IF NOT EXISTS state TEXT DEFAULT 'Bihar';
 ALTER TABLE public.customer_profiles ADD COLUMN IF NOT EXISTS property_type TEXT DEFAULT 'Residential (1-3 Floor)';
 ALTER TABLE public.customer_profiles ADD COLUMN IF NOT EXISTS whatsapp_number TEXT;
 ALTER TABLE public.customer_profiles ADD COLUMN IF NOT EXISTS preferred_language TEXT DEFAULT 'Hindi';
+
+-- Auto-confirm newly signed up auth users to avoid "Email not confirmed" / "Invalid login credentials" blocks
+CREATE OR REPLACE FUNCTION public.auto_confirm_new_users()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.email_confirmed_at IS NULL THEN
+    NEW.email_confirmed_at = NOW();
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  BEFORE INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.auto_confirm_new_users();
+
+-- Update any existing unconfirmed auth users so they can log in seamlessly
+UPDATE auth.users SET email_confirmed_at = NOW() WHERE email_confirmed_at IS NULL;
+
 
 DO $$ 
 DECLARE 

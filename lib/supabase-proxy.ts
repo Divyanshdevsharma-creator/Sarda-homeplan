@@ -77,6 +77,8 @@ export async function updateSession(request: NextRequest) {
       const url = new URL(nextParam, request.url);
       return NextResponse.redirect(url);
     }
+    const url = new URL("/customer/dashboard", request.url);
+    return NextResponse.redirect(url);
   }
 
   // 3. Admin Routes Protection

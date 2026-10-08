@@ -696,7 +696,11 @@ export default function CustomerDashboardPage() {
     const stateVal = profile?.state || metadata.state || "Bihar";
     const propertyTypeVal = profile?.property_type || metadata.property_type || "Residential (1-3 Floor)";
     const whatsappVal = profile?.whatsapp_number || metadata.whatsapp_number || "";
-    const languageVal = profile?.preferred_language || metadata.preferred_language || "Hindi";
+    const localLangCode = typeof window !== "undefined" ? localStorage.getItem("sarda_lang") : null;
+    const languageVal =
+      profile?.preferred_language ||
+      metadata.preferred_language ||
+      (localLangCode === "en" ? "English" : "Hindi");
 
     // Auto-create/sync profile in Supabase if not present
     if (!profile && currentUserId) {
@@ -728,6 +732,9 @@ export default function CustomerDashboardPage() {
     setCustomerPropertyType(propertyTypeVal);
     setCustomerWhatsapp(whatsappVal);
     setCustomerLanguage(languageVal);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("sarda_lang", languageVal === "English" ? "en" : "hi");
+    }
 
     setEditName(nameVal);
     setEditMobile(mobileVal);
@@ -1980,7 +1987,7 @@ export default function CustomerDashboardPage() {
                   </p>
 
                   <h1 className="mt-2 font-serif text-3xl font-bold text-[#10261d] sm:text-4xl">
-                    Welcome back,{" "}
+                    {customerLanguage === "English" ? "Welcome back, " : "स्वागत है, "}
                     <span className="text-[#c38a22]">{customerName}</span> 👋
                   </h1>
 

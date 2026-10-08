@@ -24,13 +24,17 @@ export const metadata: Metadata = {
   description: "Custom House Design, 2D/3D Floor Plans, Site Visits & Architectural Planning with Sarda Homeplan.",
 };
 
+import { LanguageProvider } from "@/lib/i18n";
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <LanguageProvider>{children}</LanguageProvider>
+      </body>
     </html>
   );
 }

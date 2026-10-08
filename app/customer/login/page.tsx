@@ -12,34 +12,68 @@ import {
   Lock,
   Phone,
   Globe,
-  FileText,
-  Home,
-  MessageCircle,
   RefreshCw,
   ShieldCheck,
+  AlertTriangle,
+  CheckCircle2,
 } from "lucide-react";
-import { createClient } from "../../../lib/supabase-client";
+import { createClient } from "@/lib/supabase-client";
+import { useLanguage } from "@/lib/i18n";
 
 export default function CustomerLoginPage() {
   const router = useRouter();
+  const { lang, setLang, t } = useLanguage();
 
-  const [email, setEmail] = useState("");
+  const [emailOrPhone, setEmailOrPhone] = useState("");
   const [mobile, setMobile] = useState("");
   const [password, setPassword] = useState("");
   const [loginMethod, setLoginMethod] = useState<"email" | "mobile">("email");
-  const [mobileAuthType, setMobileAuthType] = useState<"password" | "otp">("otp");
+  const [mobileAuthType, setMobileAuthType] = useState<"otp" | "password">("otp");
 
-  // Secure Supabase Phone OTP State
+  // Phone OTP State
   const [otpInput, setOtpInput] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
 
+  // Email confirmation state
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null);
+  const [isResendingConfirmEmail, setIsResendingConfirmEmail] = useState(false);
+  const [resendEmailSuccess, setResendEmailSuccess] = useState("");
+
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
+
+  // Check URL params for error messages from OAuth callback or redirect
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlError = params.get("error");
+      if (urlError) {
+        if (urlError.includes("provider is not enabled")) {
+          setErrorMessage(t.googleOauthDisabledMsg);
+        } else {
+          setErrorMessage(decodeURIComponent(urlError));
+        }
+      }
+
+      // Check if user is already authenticated
+      const checkExistingSession = async () => {
+        try {
+          const supabase = createClient();
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            router.replace("/customer/dashboard");
+          }
+        } catch (_) {}
+      };
+      checkExistingSession();
+    }
+  }, [router, t.googleOauthDisabledMsg]);
 
   // Countdown timer for Resend OTP
   useEffect(() => {
@@ -53,62 +87,6 @@ export default function CustomerLoginPage() {
       if (timer) clearTimeout(timer);
     };
   }, [resendCountdown]);
-
-  // Send OTP via Supabase Phone Authentication (SMS)
-  const handleSendOtp = async () => {
-    setErrorMessage("");
-    const cleanDigits = mobile.trim().replace(/\D/g, "");
-    const cleanMobile = cleanDigits.slice(-10);
-    if (!cleanMobile || cleanMobile.length !== 10) {
-      setErrorMessage("Please enter a valid 10-digit Indian mobile number.");
-      return;
-    }
-
-    const formattedPhone = `+91${cleanMobile}`;
-    setIsSendingOtp(true);
-    const supabase = createClient();
-
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: formattedPhone,
-      });
-
-      if (error) {
-        if (
-          error.message?.includes("phone_provider_disabled") ||
-          error.message?.includes("Unsupported phone provider")
-        ) {
-          setErrorMessage(
-            "SMS OTP provider is currently being configured in Supabase. Please login with Email & Password or contact Sarda Homeplan support."
-          );
-        } else if (
-          error.message?.toLowerCase().includes("rate limit") ||
-          error.message?.toLowerCase().includes("too many")
-        ) {
-          setErrorMessage(
-            "Too many OTP requests. Please wait a minute before requesting another code."
-          );
-        } else {
-          setErrorMessage(
-            error.message || "Failed to send SMS OTP. Please check your mobile number."
-          );
-        }
-        setIsSendingOtp(false);
-        return;
-      }
-
-      setOtpSent(true);
-      setResendCountdown(60);
-      setOtpInput("");
-      setErrorMessage("");
-    } catch (err: any) {
-      setErrorMessage(
-        err?.message || "An unexpected error occurred while sending SMS OTP."
-      );
-    } finally {
-      setIsSendingOtp(false);
-    }
-  };
 
   const getTargetUrl = () => {
     if (typeof window !== "undefined") {
@@ -132,55 +110,71 @@ export default function CustomerLoginPage() {
     }
   };
 
-  // Google OAuth Login Handler
-  const handleGoogleLogin = async () => {
-    setIsLoading(true);
+  // Helper to extract clean 10-digit Indian phone
+  const cleanPhoneDigits = (raw: string): string => {
+    const digits = raw.trim().replace(/\D/g, "");
+    return digits.slice(-10);
+  };
+
+  // Send OTP via Supabase Phone Auth
+  const handleSendOtp = async () => {
     setErrorMessage("");
+    const cleanMobile = cleanPhoneDigits(mobile);
+    if (!cleanMobile || cleanMobile.length !== 10) {
+      setErrorMessage(t.invalidPhoneError);
+      return;
+    }
+
+    const formattedPhone = `+91${cleanMobile}`;
+    setIsSendingOtp(true);
     const supabase = createClient();
 
     try {
-      const targetNext = getTargetUrl();
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(targetNext)}`,
-        },
+      const { error } = await supabase.auth.signInWithOtp({
+        phone: formattedPhone,
       });
 
       if (error) {
-        setErrorMessage(
-          `Google OAuth: ${error.message}. Please use Mobile OTP or Email/Password login.`
-        );
-        setIsLoading(false);
+        if (
+          error.message?.includes("phone_provider_disabled") ||
+          error.message?.includes("Unsupported phone provider")
+        ) {
+          setErrorMessage(t.phoneProviderDisabledMsg);
+        } else if (
+          error.message?.toLowerCase().includes("rate limit") ||
+          error.message?.toLowerCase().includes("too many")
+        ) {
+          setErrorMessage(t.rateLimitError);
+        } else {
+          setErrorMessage(error.message || t.networkError);
+        }
+        setIsSendingOtp(false);
         return;
       }
 
-      if (data?.url) {
-        window.location.href = data.url;
-      }
+      setOtpSent(true);
+      setResendCountdown(60);
+      setOtpInput("");
+      setErrorMessage("");
     } catch (err: any) {
-      setErrorMessage(
-        err?.message || "Google sign-in could not be initiated. Please use Mobile OTP or Email login."
-      );
-      setIsLoading(false);
+      setErrorMessage(err?.message || t.networkError);
+    } finally {
+      setIsSendingOtp(false);
     }
   };
 
-  // Verify OTP via Supabase Phone Authentication
+  // Verify OTP via Supabase Phone Auth
   const handleVerifyOtp = async () => {
     setErrorMessage("");
-    const cleanDigits = mobile.trim().replace(/\D/g, "");
-    const cleanMobile = cleanDigits.slice(-10);
+    const cleanMobile = cleanPhoneDigits(mobile);
     if (!cleanMobile || cleanMobile.length !== 10) {
-      setErrorMessage("Please enter a valid 10-digit mobile number.");
+      setErrorMessage(t.invalidPhoneError);
       return;
     }
 
     const cleanOtp = otpInput.trim().replace(/\D/g, "");
     if (cleanOtp.length !== 6) {
-      setErrorMessage(
-        "Please enter the complete 6-digit OTP code received on your mobile phone."
-      );
+      setErrorMessage(t.invalidOtpError);
       return;
     }
 
@@ -198,17 +192,11 @@ export default function CustomerLoginPage() {
 
       if (error) {
         if (error.message?.toLowerCase().includes("expired")) {
-          setErrorMessage(
-            "The OTP code has expired. Please click Resend OTP to receive a new code."
-          );
+          setErrorMessage(t.expiredOtpError);
         } else if (error.message?.toLowerCase().includes("invalid")) {
-          setErrorMessage(
-            "Invalid OTP code. Please enter the correct 6-digit code received on your mobile phone."
-          );
+          setErrorMessage(t.invalidOtpError);
         } else {
-          setErrorMessage(
-            error.message || "OTP verification failed. Please try again."
-          );
+          setErrorMessage(error.message || t.invalidOtpError);
         }
         setIsVerifyingOtp(false);
         setIsLoading(false);
@@ -221,7 +209,7 @@ export default function CustomerLoginPage() {
         let userCity = "";
         let userDistrict = "";
 
-        // Link with customer_profiles table in Supabase
+        // Query customer_profiles table in Supabase
         try {
           const { data: prof } = await supabase
             .from("customer_profiles")
@@ -276,35 +264,90 @@ export default function CustomerLoginPage() {
         return;
       }
 
-      setErrorMessage(
-        "Verification succeeded, but session could not be established. Please try again."
-      );
+      setErrorMessage(t.invalidOtpError);
     } catch (err: any) {
-      setErrorMessage(
-        err?.message || "An unexpected error occurred during OTP verification."
-      );
+      setErrorMessage(err?.message || t.networkError);
     } finally {
       setIsVerifyingOtp(false);
       setIsLoading(false);
     }
   };
 
-  const handleLogin = async (
-    event: React.FormEvent<HTMLFormElement>
-  ) => {
+  // Google OAuth Login Handler
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    setErrorMessage("");
+    const supabase = createClient();
+
+    try {
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const targetNext = getTargetUrl();
+      const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent(targetNext)}`;
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+        },
+      });
+
+      if (error) {
+        if (
+          error.message?.includes("provider is not enabled") ||
+          error.message?.includes("validation_failed")
+        ) {
+          setErrorMessage(t.googleOauthDisabledMsg);
+        } else {
+          setErrorMessage(`Google OAuth: ${error.message}`);
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (err: any) {
+      setErrorMessage(t.googleOauthDisabledMsg);
+      setIsLoading(false);
+    }
+  };
+
+  // Resend confirmation email handler
+  const handleResendConfirmationEmail = async () => {
+    if (!unconfirmedEmail) return;
+    setIsResendingConfirmEmail(true);
+    setResendEmailSuccess("");
+    const supabase = createClient();
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: unconfirmedEmail,
+      });
+      if (error) {
+        if (error.message?.toLowerCase().includes("rate limit")) {
+          setErrorMessage(t.rateLimitError);
+        } else {
+          setErrorMessage(error.message);
+        }
+      } else {
+        setResendEmailSuccess(t.confirmationEmailSentMsg);
+      }
+    } catch (err: any) {
+      setErrorMessage(err?.message || t.networkError);
+    } finally {
+      setIsResendingConfirmEmail(false);
+    }
+  };
+
+  // Main Form Submit Handler
+  const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMessage("");
+    setUnconfirmedEmail(null);
+    setResendEmailSuccess("");
 
-    const cleanDigits = mobile.trim().replace(/\D/g, "");
-    const cleanMobile = cleanDigits.slice(-10);
-
-    // Clear old stale session when logging in fresh
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("sarada_customer_session");
-      localStorage.removeItem("sarada_customer_logged_in");
-    }
-
-    // 1. Mobile OTP Login Flow
+    // 1. Mobile OTP Login
     if (loginMethod === "mobile" && mobileAuthType === "otp") {
       if (!otpSent) {
         await handleSendOtp();
@@ -314,43 +357,45 @@ export default function CustomerLoginPage() {
       return;
     }
 
-    // 2. Mobile Password Login Flow
+    // 2. Mobile Password Login
     if (loginMethod === "mobile" && mobileAuthType === "password") {
-      if (cleanMobile.length < 10) {
-        setErrorMessage("Please enter a valid 10-digit mobile number.");
+      const cleanMobile = cleanPhoneDigits(mobile);
+      if (cleanMobile.length !== 10) {
+        setErrorMessage(t.invalidPhoneError);
         return;
       }
       if (!password) {
-        setErrorMessage("Please enter your password.");
+        setErrorMessage(t.passwordLabel + " is required.");
         return;
       }
 
       setIsLoading(true);
       const supabase = createClient();
 
-      // Try login with phone alias
+      // Try with mobile alias
       const phoneEmail = `${cleanMobile}@sardahomeplan.com`;
       let { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: phoneEmail,
         password,
       });
 
-      // Fallback for accounts created with previous domain
+      // Fallback for previous domain accounts
       if (authError) {
         const fallbackRes = await supabase.auth.signInWithPassword({
           email: `${cleanMobile}@saradahomeplan.com`,
           password,
         });
-        if (!fallbackRes.error && fallbackRes.data.user) {
+        if (!fallbackRes.error && fallbackRes.data?.user) {
           authData = fallbackRes.data;
           authError = null;
         }
       }
 
       if (!authError && authData?.user) {
+        const user = authData.user;
         const sessionPayload = {
-          id: authData.user.id,
-          full_name: authData.user.user_metadata?.full_name || "Customer",
+          id: user.id,
+          full_name: user.user_metadata?.full_name || "Customer",
           mobile: cleanMobile,
           email: phoneEmail,
           logged_in_at: new Date().toISOString(),
@@ -361,115 +406,120 @@ export default function CustomerLoginPage() {
         return;
       }
 
-      // Check if user has registered account with regular email
-      const { data: prof } = await supabase
-        .from("customer_profiles")
-        .select("*")
-        .eq("mobile", cleanMobile)
-        .maybeSingle();
-
-      if (prof && prof.email) {
-        const { data: emData, error: emErr } = await supabase.auth.signInWithPassword({
-          email: prof.email,
-          password,
-        });
-        if (!emErr && emData.user) {
-          const sessionPayload = {
-            id: emData.user.id,
-            full_name: prof.full_name || "Customer",
-            mobile: cleanMobile,
-            email: prof.email,
-          };
-          persistCustomerSession(sessionPayload);
-          setIsLoading(false);
-          router.push(getTargetUrl());
-          return;
-        }
-      }
-
-      // Fallback: If password provided is valid or local
-      if (typeof window !== "undefined") {
-        const localSession = localStorage.getItem("sarada_customer_session") || localStorage.getItem("sarda_customer_session");
-        if (localSession) {
-          try {
-            const parsed = JSON.parse(localSession);
-            if (parsed.mobile === cleanMobile) {
-              persistCustomerSession(parsed);
-              setIsLoading(false);
-              router.push(getTargetUrl());
-              return;
-            }
-          } catch (_) {}
-        }
-      }
-
-      setErrorMessage("Incorrect mobile number or password. Try logging in via OTP 📲.");
+      setErrorMessage(t.invalidCredentialsError);
       setIsLoading(false);
       return;
     }
 
-    // 3. Email Password Login Flow
+    // 3. Email / Mobile Number with Password Login
     if (loginMethod === "email") {
-      if (!email.trim()) {
-        setErrorMessage("Please enter your email address.");
+      const rawInput = emailOrPhone.trim();
+      if (!rawInput) {
+        setErrorMessage(t.emailLabel + " is required.");
         return;
       }
       if (!password) {
-        setErrorMessage("Please enter your password.");
+        setErrorMessage(t.passwordLabel + " is required.");
         return;
       }
 
       setIsLoading(true);
       const supabase = createClient();
-      const cleanEmail = email.trim().toLowerCase();
 
-      const { data: authData, error } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
+      // Check if user input is an Indian mobile number
+      const isMobileNumber =
+        /^(?:\+?91)?[6-9]\d{9}$/.test(rawInput.replace(/[\s-]/g, "")) ||
+        (/^\d{10}$/.test(rawInput.replace(/\D/g, "")));
+
+      let primaryEmail = rawInput.toLowerCase();
+      let fallbackEmail: string | null = null;
+
+      if (isMobileNumber) {
+        const cleanMobile = cleanPhoneDigits(rawInput);
+        primaryEmail = `${cleanMobile}@sardahomeplan.com`;
+        fallbackEmail = `${cleanMobile}@saradahomeplan.com`;
+      }
+
+      // First attempt
+      let { data: authData, error } = await supabase.auth.signInWithPassword({
+        email: primaryEmail,
         password,
       });
 
-      if (error) {
-        console.error("Customer login error:", error);
-        // Check if rate limited or unconfirmed
-        if (error.message.toLowerCase().includes("email not confirmed")) {
-          // Allow customer into dashboard using cached profile
-          const fallbackUuid =
-            typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-              ? crypto.randomUUID()
-              : "00000000-0000-4000-8000-" + String(Date.now()).padStart(12, "0");
-          const sessionPayload = {
-            id: fallbackUuid,
-            email: cleanEmail,
-            full_name: "Customer",
-            logged_in_at: new Date().toISOString(),
-          };
-          persistCustomerSession(sessionPayload);
-          setIsLoading(false);
-          router.push(getTargetUrl());
-          return;
+      // If mobile alias had fallback domain
+      if (error && fallbackEmail) {
+        const fallbackRes = await supabase.auth.signInWithPassword({
+          email: fallbackEmail,
+          password,
+        });
+        if (!fallbackRes.error && fallbackRes.data?.user) {
+          authData = fallbackRes.data;
+          error = null;
         }
+      }
 
-        setErrorMessage(error.message);
+      if (error) {
+        const errorLower = error.message.toLowerCase();
+        if (errorLower.includes("email not confirmed")) {
+          setUnconfirmedEmail(primaryEmail);
+          setErrorMessage(t.emailNotConfirmedError);
+        } else if (
+          errorLower.includes("invalid login credentials") ||
+          errorLower.includes("invalid_grant")
+        ) {
+          setErrorMessage(t.invalidCredentialsError);
+        } else if (errorLower.includes("rate limit") || errorLower.includes("too many")) {
+          setErrorMessage(t.rateLimitError);
+        } else {
+          setErrorMessage(error.message);
+        }
         setIsLoading(false);
         return;
       }
 
       if (authData?.user) {
-        const metadata = authData.user.user_metadata || {};
+        const user = authData.user;
+        const metadata = user.user_metadata || {};
+
+        // Query customer_profiles for full name & data
+        let profileName = metadata.full_name || "Customer";
+        let userMobile = metadata.mobile || "";
+        let userCity = metadata.village_city || "";
+        let userDistrict = metadata.district || "";
+
+        try {
+          const { data: prof } = await supabase
+            .from("customer_profiles")
+            .select("*")
+            .eq("id", user.id)
+            .maybeSingle();
+
+          if (prof) {
+            profileName = prof.full_name || profileName;
+            userMobile = prof.mobile || userMobile;
+            userCity = prof.village_city || userCity;
+            userDistrict = prof.district || userDistrict;
+          }
+        } catch (_) {}
+
         const sessionPayload = {
-          id: authData.user.id,
-          full_name: metadata.full_name || "Customer",
-          email: cleanEmail,
-          mobile: metadata.mobile || "",
-          village_city: metadata.village_city || "",
-          district: metadata.district || "",
+          id: user.id,
+          full_name: profileName,
+          email: user.email || primaryEmail,
+          mobile: userMobile,
+          village_city: userCity,
+          district: userDistrict,
           logged_in_at: new Date().toISOString(),
         };
+
         persistCustomerSession(sessionPayload);
+        setIsLoading(false);
+        router.push(getTargetUrl());
+        return;
       }
 
       setIsLoading(false);
-      router.push(getTargetUrl());
+      setErrorMessage(t.invalidCredentialsError);
     }
   };
 
@@ -478,138 +528,110 @@ export default function CustomerLoginPage() {
       <div className="grid min-h-screen lg:h-full min-h-0 lg:grid-cols-2">
 
         {/* =====================================================
-            LEFT — LOGIN
+            LEFT — LOGIN FORM
         ===================================================== */}
-
         <section className="relative flex min-h-screen lg:min-h-0 lg:h-full items-center justify-center overflow-y-auto lg:overflow-hidden bg-[#fbfaf6] px-4 py-8 sm:px-8 lg:px-10">
 
-          {/* Decorative architecture */}
-          <div className="pointer-events-none absolute left-0 top-[210px] opacity-[0.055]">
-            <svg
-              width="180"
-              height="330"
-              viewBox="0 0 180 330"
-              fill="none"
-            >
-              <path
-                d="M0 120L70 55L140 120V270H0V120Z"
-                stroke="#063b2c"
-              />
-              <path
-                d="M35 270V155H105V270"
-                stroke="#063b2c"
-              />
-              <path
-                d="M70 55V270"
-                stroke="#063b2c"
-              />
-              <path
-                d="M140 120L180 155V300"
-                stroke="#063b2c"
-              />
-            </svg>
-          </div>
+          <div className="relative z-10 w-full max-w-[480px]">
 
-          {/* Botanical decoration */}
-          <div className="pointer-events-none absolute bottom-0 left-0 opacity-[0.07]">
-            <svg
-              width="150"
-              height="180"
-              viewBox="0 0 150 180"
-              fill="none"
-            >
-              <path
-                d="M15 170C30 130 55 105 95 85C120 72 135 48 140 15"
-                stroke="#9b7732"
-                strokeWidth="1.5"
-              />
-              <path
-                d="M40 140C30 120 32 102 45 88"
-                stroke="#9b7732"
-                strokeWidth="1.5"
-              />
-              <path
-                d="M70 110C63 91 68 72 82 59"
-                stroke="#9b7732"
-                strokeWidth="1.5"
-              />
-            </svg>
-          </div>
+            {/* TOP BAR: BRAND LOGO + LANGUAGE SELECTOR */}
+            <div className="mb-5 flex items-center justify-between">
 
-          {/* Gold corners */}
-          <div className="pointer-events-none absolute left-7 top-7 h-14 w-14 border-l border-t border-[#b08a3e]" />
-
-          <div className="pointer-events-none absolute bottom-7 right-7 h-14 w-14 border-b border-r border-[#b08a3e]" />
-
-          {/* Main content */}
-          <div className="relative z-10 flex max-h-full w-full max-w-[650px] flex-col">
-
-            {/* =================================================
-                HEADER
-            ================================================= */}
-
-            <div className="mb-3 flex items-start justify-between">
-
-              {/* BRAND */}
+              {/* LOGO */}
               <Link
                 href="/"
-                className="flex items-center gap-3 group transition"
+                onClick={(e) => {
+                  if (typeof window !== "undefined" && window.location.pathname === "/") {
+                    e.preventDefault();
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }
+                }}
+                className="flex items-center gap-2.5 group transition"
                 aria-label="Back to Homepage"
               >
-                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full shadow-sm transition group-hover:scale-105 border border-[#d9b45a]/30">
+                <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full shadow-sm transition group-hover:scale-105 border border-[#d9b45a]/30">
                   <Image
                     src="/sarda-logo.png"
                     alt="Sarda Homeplan"
-                    width={96}
-                    height={96}
+                    width={88}
+                    height={88}
                     priority
                     className="h-full w-full object-contain"
                   />
                 </div>
 
-                <div>
-                  <h1 className="font-serif text-[24px] font-semibold tracking-[0.08em] leading-none text-[#063b2c] sm:text-[27px] group-hover:text-[#0b5c46] transition">
-                    SARDA
-                  </h1>
-
-                  <p className="mt-0.5 text-[9px] font-extrabold tracking-[0.32em] text-[#9b7732]">
-                    HOMEPLAN
-                  </p>
-
-                  <p className="mt-0.5 text-[9px] text-black/55">
-                    Ghar Ka Naksha, Aapke Sapno Ke Saath
+                <div className="leading-tight">
+                  <div className="font-serif text-[17px] font-bold tracking-wide text-[#063b2c] group-hover:text-[#0b5c46] transition">
+                    SARDA HOMEPLAN
+                  </div>
+                  <p className="text-[9px] font-semibold tracking-wider text-[#9b7732]">
+                    {t.brandTagline}
                   </p>
                 </div>
               </Link>
 
-              {/* LANGUAGE */}
-              <button
-                type="button"
-                className="flex items-center gap-2 rounded-full border border-black/10 bg-white px-3.5 py-2 text-xs font-medium shadow-sm transition hover:border-[#063b2c]/30"
-              >
-                <Globe size={14} />
-                English
-                <span className="text-[10px]">⌄</span>
-              </button>
+              {/* FUNCTIONAL LANGUAGE SELECTOR */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setLangMenuOpen(!langMenuOpen)}
+                  className="flex items-center gap-1.5 rounded-full border border-black/10 bg-white px-3.5 py-1.5 text-xs font-semibold shadow-xs transition hover:border-[#063b2c]/40 text-[#17221b]"
+                  aria-expanded={langMenuOpen}
+                >
+                  <Globe size={14} className="text-[#063b2c]" />
+                  <span>{lang === "hi" ? "हिन्दी" : "English"}</span>
+                  <span className="text-[10px] text-black/50">⌄</span>
+                </button>
+
+                {langMenuOpen && (
+                  <div className="absolute right-0 mt-1 w-32 rounded-xl border border-[#ded9cf] bg-white p-1 shadow-lg z-30 animate-in fade-in duration-100">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLang("en");
+                        setLangMenuOpen(false);
+                      }}
+                      className={`w-full rounded-lg px-3 py-1.5 text-left text-xs font-medium transition ${
+                        lang === "en"
+                          ? "bg-[#063b2c] text-[#f4cf72] font-bold"
+                          : "text-black/75 hover:bg-[#faf8f4]"
+                      }`}
+                    >
+                      English
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLang("hi");
+                        setLangMenuOpen(false);
+                      }}
+                      className={`w-full rounded-lg px-3 py-1.5 text-left text-xs font-medium transition ${
+                        lang === "hi"
+                          ? "bg-[#063b2c] text-[#f4cf72] font-bold"
+                          : "text-black/75 hover:bg-[#faf8f4]"
+                      }`}
+                    >
+                      हिन्दी (Hindi)
+                    </button>
+                  </div>
+                )}
+              </div>
 
             </div>
 
             {/* =================================================
                 LOGIN CARD
             ================================================= */}
-
             <div className="rounded-[27px] border border-[#e5ded2] bg-white/95 px-6 py-5 shadow-[0_15px_45px_rgba(23,34,27,0.07)] backdrop-blur-sm sm:px-9 sm:py-6">
 
               {/* Heading */}
-
               <div className="text-center">
-
                 <p className="text-[9px] font-semibold uppercase tracking-[0.38em] text-[#9b7732]">
-                  Welcome Back
+                  {t.welcomeBack}
                 </p>
 
-                <h2 className="mt-1 font-serif text-[30px] font-semibold leading-tight text-[#063b2c] sm:text-[34px]">
-                  Customer Login
+                <h2 className="mt-1 font-serif text-[28px] font-semibold leading-tight text-[#063b2c] sm:text-[32px]">
+                  {t.customerLogin}
                 </h2>
 
                 <div className="mx-auto mt-2 flex items-center justify-center gap-2">
@@ -618,16 +640,13 @@ export default function CustomerLoginPage() {
                   <span className="h-px w-12 bg-[#d9c49a]" />
                 </div>
 
-                <p className="mt-3 text-xs text-black/55 sm:text-sm">
-                  Login to access your projects, plans and consultations.
+                <p className="mt-2.5 text-xs text-black/55 sm:text-sm">
+                  {t.loginSubtitle}
                 </p>
-
               </div>
 
-              {/* LOGIN METHOD */}
-
-              <div className="mt-5 flex rounded-xl bg-[#f6f3ec] p-1">
-
+              {/* LOGIN METHOD TABS: EMAIL VS MOBILE */}
+              <div className="mt-4 flex rounded-xl bg-[#f6f3ec] p-1">
                 <button
                   type="button"
                   onClick={() => {
@@ -636,11 +655,11 @@ export default function CustomerLoginPage() {
                   }}
                   className={`flex-1 rounded-lg py-2 text-xs font-semibold transition ${
                     loginMethod === "email"
-                      ? "bg-white text-[#063b2c] shadow-sm"
-                      : "text-black/45"
+                      ? "bg-white text-[#063b2c] shadow-xs"
+                      : "text-black/45 hover:text-black/70"
                   }`}
                 >
-                  Email
+                  {t.emailTab}
                 </button>
 
                 <button
@@ -651,23 +670,19 @@ export default function CustomerLoginPage() {
                   }}
                   className={`flex-1 rounded-lg py-2 text-xs font-semibold transition ${
                     loginMethod === "mobile"
-                      ? "bg-white text-[#063b2c] shadow-sm"
-                      : "text-black/45"
+                      ? "bg-white text-[#063b2c] shadow-xs"
+                      : "text-black/45 hover:text-black/70"
                   }`}
                 >
-                  Mobile
+                  {t.mobileTab}
                 </button>
-
               </div>
 
-              <form
-                onSubmit={handleLogin}
-                className="mt-4"
-              >
+              <form onSubmit={handleLogin} className="mt-4">
 
                 {/* MOBILE SUB-TOGGLE: OTP VS PASSWORD */}
                 {loginMethod === "mobile" && (
-                  <div className="mb-3 flex rounded-lg bg-[#efece4] p-0.5">
+                  <div className="mb-3.5 flex rounded-lg bg-[#efece4] p-0.5">
                     <button
                       type="button"
                       onClick={() => {
@@ -676,11 +691,11 @@ export default function CustomerLoginPage() {
                       }}
                       className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition ${
                         mobileAuthType === "otp"
-                          ? "bg-white text-[#063b2c] shadow-sm"
+                          ? "bg-white text-[#063b2c] shadow-xs"
                           : "text-black/50"
                       }`}
                     >
-                      Login via OTP 📲
+                      {t.loginViaOtp}
                     </button>
                     <button
                       type="button"
@@ -690,20 +705,20 @@ export default function CustomerLoginPage() {
                       }}
                       className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition ${
                         mobileAuthType === "password"
-                          ? "bg-white text-[#063b2c] shadow-sm"
+                          ? "bg-white text-[#063b2c] shadow-xs"
                           : "text-black/50"
                       }`}
                     >
-                      Login via Password 🔒
+                      {t.loginViaPassword}
                     </button>
                   </div>
                 )}
 
-                {/* EMAIL */}
+                {/* EMAIL / PHONE INPUT */}
                 {loginMethod === "email" && (
                   <div>
                     <label className="mb-1.5 block text-xs font-semibold text-[#17221b]">
-                      Email Address
+                      {t.emailLabel}
                     </label>
 
                     <div className="relative">
@@ -713,24 +728,22 @@ export default function CustomerLoginPage() {
                       />
 
                       <input
-                        type="email"
-                        value={email}
-                        onChange={(event) =>
-                          setEmail(event.target.value)
-                        }
-                        placeholder="Enter your email address"
-                        autoComplete="email"
-                        className="h-[50px] w-full rounded-xl border border-[#dcd7cf] bg-white pl-11 pr-4 text-sm outline-none transition focus:border-[#063b2c] focus:ring-2 focus:ring-[#063b2c]/10"
+                        type="text"
+                        value={emailOrPhone}
+                        onChange={(e) => setEmailOrPhone(e.target.value)}
+                        placeholder={t.emailPlaceholder}
+                        autoComplete="username"
+                        className="h-[48px] w-full rounded-xl border border-[#dcd7cf] bg-white pl-11 pr-4 text-sm outline-none transition focus:border-[#063b2c] focus:ring-2 focus:ring-[#063b2c]/10"
                       />
                     </div>
                   </div>
                 )}
 
-                {/* MOBILE */}
+                {/* MOBILE NUMBER INPUT */}
                 {loginMethod === "mobile" && (
                   <div>
                     <label className="mb-1.5 block text-xs font-semibold text-[#17221b]">
-                      Indian Mobile Number
+                      {t.mobileLabel}
                     </label>
 
                     <div className="relative">
@@ -741,11 +754,11 @@ export default function CustomerLoginPage() {
                       <input
                         type="tel"
                         value={mobile}
-                        onChange={(event) => setMobile(event.target.value)}
-                        placeholder="e.g. 7905916813"
+                        onChange={(e) => setMobile(e.target.value)}
+                        placeholder={t.mobilePlaceholder}
                         autoComplete="tel"
                         disabled={otpSent}
-                        className="h-[50px] w-full rounded-xl border border-[#dcd7cf] bg-white pl-12 pr-28 text-sm outline-none transition focus:border-[#063b2c] focus:ring-2 focus:ring-[#063b2c]/10 disabled:bg-[#f3f0e8] disabled:text-black/60"
+                        className="h-[48px] w-full rounded-xl border border-[#dcd7cf] bg-white pl-12 pr-28 text-sm outline-none transition focus:border-[#063b2c] focus:ring-2 focus:ring-[#063b2c]/10 disabled:bg-[#f3f0e8] disabled:text-black/60"
                       />
 
                       {mobileAuthType === "otp" && !otpSent && (
@@ -753,9 +766,9 @@ export default function CustomerLoginPage() {
                           type="button"
                           onClick={handleSendOtp}
                           disabled={isSendingOtp}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg bg-[#063b2c] px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#0a4b39] disabled:opacity-60"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg bg-[#063b2c] px-3 py-1.5 text-xs font-semibold text-[#f4cf72] shadow-xs hover:bg-[#0a4b39] disabled:opacity-60 transition"
                         >
-                          {isSendingOtp ? "Sending..." : "Send OTP"}
+                          {isSendingOtp ? t.processingBtn : t.sendOtpBtn}
                         </button>
                       )}
 
@@ -767,38 +780,38 @@ export default function CustomerLoginPage() {
                             setOtpInput("");
                             setErrorMessage("");
                           }}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg bg-[#eee8dc] px-2.5 py-1 text-xs font-semibold text-[#063b2c] hover:bg-[#e2d9c8]"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg bg-[#eee8dc] px-2.5 py-1 text-xs font-semibold text-[#063b2c] hover:bg-[#e2d9c8] transition"
                         >
-                          Change
+                          {t.changeMobileBtn}
                         </button>
                       )}
                     </div>
                   </div>
                 )}
 
-                {/* SECURE MOBILE OTP VERIFICATION CARD */}
+                {/* 6-DIGIT OTP VERIFICATION CARD */}
                 {loginMethod === "mobile" && mobileAuthType === "otp" && otpSent && (
-                  <div className="mt-4 space-y-3.5 rounded-2xl border border-[#063b2c]/20 bg-gradient-to-b from-[#f5f8f5] to-[#fbfaf6] p-4 shadow-sm">
+                  <div className="mt-4 space-y-3.5 rounded-2xl border border-[#063b2c]/20 bg-gradient-to-b from-[#f5f8f5] to-[#fbfaf6] p-4 shadow-xs">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5 text-xs font-bold text-[#063b2c]">
                         <ShieldCheck size={16} />
-                        <span>Verify Your Mobile</span>
+                        <span>{t.verifyMobileTitle}</span>
                       </div>
                       <span className="rounded-full bg-[#063b2c]/10 px-2 py-0.5 text-[11px] font-semibold text-[#063b2c]">
-                        SMS Sent
+                        {t.smsSentBadge}
                       </span>
                     </div>
 
                     <p className="text-xs text-black/65 leading-relaxed">
-                      We have sent a 6-digit verification OTP code to{" "}
+                      {t.enterOtpPrompt}{" "}
                       <span className="font-semibold text-[#17221b]">
-                        +91 ******{mobile.trim().replace(/\D/g, "").slice(-4)}
+                        +91 ******{cleanPhoneDigits(mobile).slice(-4)}
                       </span>
                     </p>
 
                     <div>
                       <label className="mb-1.5 block text-xs font-semibold text-[#17221b]">
-                        Enter 6-Digit OTP
+                        {t.enterOtpLabel}
                       </label>
                       <input
                         type="text"
@@ -808,17 +821,17 @@ export default function CustomerLoginPage() {
                         onChange={(e) =>
                           setOtpInput(e.target.value.replace(/\D/g, ""))
                         }
-                        placeholder="• • • • • •"
+                        placeholder={t.otpPlaceholder}
                         autoFocus
-                        className="h-[52px] w-full rounded-xl border border-[#dcd7cf] bg-white text-center font-mono text-2xl font-bold tracking-[0.4em] text-[#17221b] outline-none transition focus:border-[#063b2c] focus:ring-2 focus:ring-[#063b2c]/10"
+                        className="h-[50px] w-full rounded-xl border border-[#dcd7cf] bg-white text-center font-mono text-2xl font-bold tracking-[0.4em] text-[#17221b] outline-none transition focus:border-[#063b2c] focus:ring-2 focus:ring-[#063b2c]/10"
                       />
                     </div>
 
                     <div className="flex items-center justify-between text-xs pt-1 border-t border-black/5">
-                      <span className="text-black/50">Didn't receive the SMS?</span>
+                      <span className="text-black/50">{t.didNotReceiveSms}</span>
                       {resendCountdown > 0 ? (
                         <span className="font-medium text-black/45">
-                          Resend OTP in {resendCountdown}s
+                          {t.resendOtpIn} {resendCountdown}s
                         </span>
                       ) : (
                         <button
@@ -827,7 +840,7 @@ export default function CustomerLoginPage() {
                           disabled={isSendingOtp}
                           className="font-semibold text-[#063b2c] hover:underline"
                         >
-                          {isSendingOtp ? "Sending..." : "Resend OTP"}
+                          {isSendingOtp ? t.processingBtn : t.resendOtpBtn}
                         </button>
                       )}
                     </div>
@@ -836,9 +849,9 @@ export default function CustomerLoginPage() {
 
                 {/* PASSWORD (For Email OR Mobile with Password) */}
                 {(loginMethod === "email" || (loginMethod === "mobile" && mobileAuthType === "password")) && (
-                  <div className="mt-4">
+                  <div className="mt-3.5">
                     <label className="mb-1.5 block text-xs font-semibold text-[#17221b]">
-                      Password
+                      {t.passwordLabel}
                     </label>
 
                     <div className="relative">
@@ -848,116 +861,122 @@ export default function CustomerLoginPage() {
                       />
 
                       <input
-                        type={
-                          showPassword
-                            ? "text"
-                            : "password"
-                        }
+                        type={showPassword ? "text" : "password"}
                         value={password}
-                        onChange={(event) =>
-                          setPassword(event.target.value)
-                        }
-                        placeholder="Enter your password"
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder={t.passwordPlaceholder}
                         autoComplete="current-password"
-                        className="h-[50px] w-full rounded-xl border border-[#dcd7cf] bg-white pl-11 pr-11 text-sm outline-none transition focus:border-[#063b2c] focus:ring-2 focus:ring-[#063b2c]/10"
+                        className="h-[48px] w-full rounded-xl border border-[#dcd7cf] bg-white pl-11 pr-11 text-sm outline-none transition focus:border-[#063b2c] focus:ring-2 focus:ring-[#063b2c]/10"
                       />
 
                       <button
                         type="button"
-                        onClick={() =>
-                          setShowPassword(!showPassword)
-                        }
+                        onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-4 top-1/2 -translate-y-1/2 text-black/45 transition hover:text-[#063b2c]"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
                       >
-                        {showPassword ? (
-                          <EyeOff size={17} />
-                        ) : (
-                          <Eye size={17} />
-                        )}
+                        {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                       </button>
                     </div>
                   </div>
                 )}
 
-                {/* OPTIONS */}
+                {/* OPTIONS: REMEMBER ME & FORGOT PASSWORD */}
                 <div className="mt-3 flex items-center justify-between">
                   <label className="flex cursor-pointer items-center gap-2 text-xs text-[#17221b]/80">
                     <input
                       type="checkbox"
                       checked={rememberMe}
-                      onChange={(event) =>
-                        setRememberMe(event.target.checked)
-                      }
+                      onChange={(e) => setRememberMe(e.target.checked)}
                       className="h-4 w-4 accent-[#063b2c]"
                     />
-                    Keep me signed in
+                    {t.rememberMe}
                   </label>
 
                   <Link
                     href="/customer/forgot-password"
                     className="text-xs font-medium text-[#063b2c] hover:underline"
                   >
-                    Forgot Password?
+                    {t.forgotPassword}
                   </Link>
                 </div>
 
-                {/* ERROR */}
+                {/* ERROR MESSAGE DISPLAY */}
                 {errorMessage && (
-                  <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">
-                    {errorMessage}
+                  <div className="mt-3.5 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700 space-y-1">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle size={15} className="shrink-0 mt-0.5 text-red-600" />
+                      <div>{errorMessage}</div>
+                    </div>
+                    {unconfirmedEmail && (
+                      <div className="pt-2 border-t border-red-200/60 mt-1 flex items-center justify-between">
+                        <span className="text-[11px] text-red-850">
+                          {unconfirmedEmail}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleResendConfirmationEmail}
+                          disabled={isResendingConfirmEmail}
+                          className="font-bold underline text-red-800 hover:text-red-900 disabled:opacity-50"
+                        >
+                          {isResendingConfirmEmail ? t.processingBtn : t.resendConfirmationEmailBtn}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* LOGIN */}
+                {/* RESEND EMAIL SUCCESS */}
+                {resendEmailSuccess && (
+                  <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-xs text-emerald-800 flex items-center gap-2">
+                    <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
+                    <span>{resendEmailSuccess}</span>
+                  </div>
+                )}
 
+                {/* SUBMIT BUTTON */}
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="mt-4 flex h-[52px] w-full items-center justify-center gap-3 rounded-full bg-[#063b2c] text-sm font-semibold text-white shadow-lg shadow-[#063b2c]/10 transition hover:bg-[#0a4b39] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-4 flex h-[50px] w-full items-center justify-center gap-2.5 rounded-full bg-[#063b2c] text-sm font-semibold text-white shadow-lg shadow-[#063b2c]/10 transition hover:bg-[#0a4b39] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isLoading ? (
-                    "Processing..."
+                    t.processingBtn
                   ) : loginMethod === "mobile" && mobileAuthType === "otp" ? (
                     otpSent ? (
                       <>
-                        Verify OTP & Open Dashboard
-                        <ArrowRight size={18} />
+                        {t.verifyAndContinueBtn}
+                        <ArrowRight size={17} />
                       </>
                     ) : (
                       <>
-                        Send Verification OTP 📲
-                        <ArrowRight size={18} />
+                        {t.sendOtpBtn} 📲
+                        <ArrowRight size={17} />
                       </>
                     )
                   ) : (
                     <>
-                      Login to Dashboard
-                      <ArrowRight size={18} />
+                      {t.loginBtn}
+                      <ArrowRight size={17} />
                     </>
                   )}
                 </button>
 
                 {/* DIVIDER */}
-
                 <div className="my-4 flex items-center gap-4">
-
                   <div className="h-px flex-1 bg-black/10" />
-
                   <span className="text-[10px] font-medium text-black/40">
-                    OR
+                    {t.orDivider}
                   </span>
-
                   <div className="h-px flex-1 bg-black/10" />
-
                 </div>
 
-                {/* GOOGLE */}
-
+                {/* GOOGLE OAUTH */}
                 <button
                   type="button"
                   onClick={handleGoogleLogin}
                   disabled={isLoading}
-                  className="flex h-[48px] w-full items-center justify-center gap-3 rounded-full border border-[#dcd7cf] bg-white text-sm font-semibold text-[#17221b] transition hover:bg-[#f8f6f0] disabled:opacity-60"
+                  className="flex h-[46px] w-full items-center justify-center gap-3 rounded-full border border-[#dcd7cf] bg-white text-sm font-semibold text-[#17221b] transition hover:bg-[#f8f6f0] disabled:opacity-60"
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24">
                     <path
@@ -977,159 +996,62 @@ export default function CustomerLoginPage() {
                       d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                     />
                   </svg>
-                  Continue with Google
+                  {t.continueWithGoogle}
                 </button>
 
-                {/* SIGN UP */}
-
+                {/* SIGN UP LINK */}
                 <p className="mt-4 text-center text-xs text-black/55">
-
-                  Don't have an account?{" "}
-
+                  {t.noAccountPrompt}{" "}
                   <Link
                     href="/customer/signup"
                     className="font-semibold text-[#063b2c] hover:underline"
                   >
-                    Create New Account
+                    {t.createAccountLink}
                   </Link>
-
-                  <ArrowRight
-                    size={13}
-                    className="ml-1 inline text-[#063b2c]"
-                  />
-
+                  <ArrowRight size={13} className="ml-1 inline text-[#063b2c]" />
                 </p>
 
               </form>
-
             </div>
           </div>
         </section>
 
         {/* =====================================================
-            RIGHT — ARCHITECTURAL IMAGE
+            RIGHT — BRAND SHOWCASE
         ===================================================== */}
-
         <section className="relative hidden h-full min-h-0 overflow-hidden bg-[#063b2c] lg:block">
-
-          {/* IMAGE */}
-
           <div
             className="absolute inset-0 bg-cover bg-center"
             style={{
-              backgroundImage:
-                "url('/customer-login-bg.png')",
+              backgroundImage: "url('/customer-login-bg.png')",
             }}
           />
-
-          {/* GREEN OVERLAY */}
-
-          <div className="absolute inset-0 bg-[#063b2c]/25" />
-
-          {/* GRADIENT */}
-
-          <div className="absolute inset-0 bg-gradient-to-r from-[#063b2c]/75 via-[#063b2c]/25 to-transparent" />
-
-          {/* CONTENT */}
+          <div className="absolute inset-0 bg-[#063b2c]/30" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#063b2c]/85 via-[#063b2c]/35 to-transparent" />
 
           <div className="relative z-10 flex h-full items-center px-10 xl:px-14">
-
             <div className="max-w-[470px]">
-
-              <p className="font-serif text-[34px] italic leading-tight text-white xl:text-[40px]">
-                Your Dream Home
+              <p className="font-serif text-[32px] italic leading-tight text-white xl:text-[38px]">
+                {t.dreamHomeQuote1}
               </p>
 
-              <h3 className="mt-1 font-serif text-[48px] font-semibold leading-[0.98] text-white xl:text-[56px]">
-
-                Starts with
-
+              <h3 className="mt-1 font-serif text-[46px] font-semibold leading-[0.98] text-white xl:text-[54px]">
+                {t.dreamHomeQuote2}
                 <span className="block text-[#e1c681]">
-                  a Plan
+                  {t.dreamHomeQuoteHighlight}
                 </span>
-
               </h3>
 
-              <div className="mt-5 h-px w-14 bg-[#d8bb76]" />
+              <div className="mt-5 h-1 w-20 rounded-full bg-[#d9b45a]" />
 
-              <p className="mt-5 max-w-[390px] text-sm leading-6 text-white/90 xl:text-[15px]">
-
-                Manage your requests, view approved plans,
-                and connect with our experts — all in one place.
-
+              <p className="mt-4 text-sm leading-relaxed text-white/80 xl:text-base">
+                {t.dreamHomeDesc}
               </p>
-
-              {/* FEATURES */}
-
-              <div className="mt-7 grid grid-cols-3 gap-3">
-
-                <FeatureCard
-                  icon={<FileText size={26} />}
-                  title={
-                    <>
-                      Track Your
-                      <br />
-                      Requests
-                    </>
-                  }
-                />
-
-                <FeatureCard
-                  icon={<Home size={27} />}
-                  title={
-                    <>
-                      View Your
-                      <br />
-                      Plans
-                    </>
-                  }
-                />
-
-                <FeatureCard
-                  icon={<MessageCircle size={26} />}
-                  title={
-                    <>
-                      Chat &
-                      <br />
-                      Consult
-                    </>
-                  }
-                />
-
-              </div>
-
             </div>
-
           </div>
-
         </section>
+
       </div>
     </main>
-  );
-}
-
-/* =========================================================
-   FEATURE CARD
-========================================================= */
-
-function FeatureCard({
-  icon,
-  title,
-}: {
-  icon: React.ReactNode;
-  title: React.ReactNode;
-}) {
-  return (
-    <div className="flex min-h-[112px] flex-col items-center justify-center rounded-2xl border border-white/20 bg-white/[0.10] px-2 text-center shadow-lg backdrop-blur-md">
-
-      <div className="mb-2 text-[#e1c681]">
-        {icon}
-      </div>
-
-      <p className="text-[11px] font-semibold leading-4 text-white">
-        {title}
-      </p>
-
-    </div>
   );
 }
