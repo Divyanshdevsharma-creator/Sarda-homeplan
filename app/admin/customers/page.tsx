@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import {
   Users,
@@ -21,10 +21,16 @@ import {
   Clock,
   Sparkles,
   Layers,
+  MessageCircle,
+  CheckCircle2,
+  LayoutGrid,
+  Table as TableIcon,
+  CreditCard,
+  CalendarDays,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
-interface CustomerProfile {
+export interface CustomerDirectoryItem {
   id: string;
   full_name: string | null;
   mobile: string | null;
@@ -34,21 +40,30 @@ interface CustomerProfile {
   avatar_url?: string | null;
   created_at: string;
   updated_at?: string;
-  projectCount?: number;
-  currentStatus?: string;
+  projectsCount: number;
+  requestsCount: number;
+  visitsCount: number;
+  paymentsCount: number;
+  currentStatus: string;
+  accountStatus: "Active" | "New";
+  hasUpcomingVisit: boolean;
+  hasPendingRequest: boolean;
+  paymentPending: boolean;
+  isRegisteredProfile: boolean;
 }
 
 export default function AdminCustomersDirectoryPage() {
-  const [customers, setCustomers] = useState<CustomerProfile[]>([]);
+  const [customers, setCustomers] = useState<CustomerDirectoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [districtFilter, setDistrictFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
 
   const supabase = createClient();
 
-  const fetchDirectory = async () => {
+  const fetchDirectory = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -64,87 +79,210 @@ export default function AdminCustomersDirectoryPage() {
       // 2. Fetch customer_requests to calculate project count and current status
       const { data: requests } = await supabase
         .from("customer_requests")
-        .select("id, customer_user_id, mobile, status, created_at");
+        .select("id, customer_user_id, full_name, mobile, village_city, district, status, created_at");
 
-      // 3. Fetch projects to also cross-verify
+      // 3. Fetch projects
       const { data: projects } = await supabase
         .from("projects")
-        .select("id, customer_id, project_status, created_at");
+        .select("id, customer_id, customer_request_id, project_name, project_status, created_at");
 
+      // 4. Fetch site_visits
+      const { data: siteVisits } = await supabase
+        .from("site_visits")
+        .select("id, request_id, visit_date, visit_time, status, customer_response");
+
+      // 5. Fetch payments
+      const { data: payments } = await supabase
+        .from("payments")
+        .select("id, request_id, customer_user_id, mobile, amount, payment_status");
+
+      const profList = profiles || [];
       const reqList = requests || [];
       const projList = projects || [];
+      const visitList = siteVisits || [];
+      const payList = payments || [];
 
-      // Map profiles with request counts and latest status
-      const enriched: CustomerProfile[] = (profiles || []).map((prof) => {
-        const cleanMobile = prof.mobile ? prof.mobile.replace(/\D/g, "") : "";
+      // Map profiles with live cross-table associations
+      const enrichedProfiles: CustomerDirectoryItem[] = profList.map((prof) => {
+        const cleanMobile = prof.mobile ? prof.mobile.replace(/\D/g, "").slice(-10) : "";
 
-        // Find associated requests
+        // Associated requests
         const matchedReqs = reqList.filter((r) => {
           if (r.customer_user_id && r.customer_user_id === prof.id) return true;
-          if (cleanMobile && r.mobile && r.mobile.replace(/\D/g, "") === cleanMobile) return true;
+          const rClean = r.mobile ? r.mobile.replace(/\D/g, "").slice(-10) : "";
+          if (cleanMobile && rClean && cleanMobile === rClean) return true;
+          return false;
+        });
+        const reqIds = matchedReqs.map((r) => r.id);
+
+        // Associated projects
+        const matchedProjs = projList.filter(
+          (p) => p.customer_id === prof.id || (p.customer_request_id && reqIds.includes(p.customer_request_id))
+        );
+
+        // Associated site visits
+        const matchedVisits = visitList.filter((v) => reqIds.includes(v.request_id));
+
+        // Associated payments
+        const matchedPays = payList.filter((py) => {
+          if (py.customer_user_id && py.customer_user_id === prof.id) return true;
+          if (py.request_id && reqIds.includes(py.request_id)) return true;
+          const pyClean = py.mobile ? py.mobile.replace(/\D/g, "").slice(-10) : "";
+          if (cleanMobile && pyClean && cleanMobile === pyClean) return true;
           return false;
         });
 
-        // Find associated projects
-        const matchedProjs = projList.filter((p) => p.customer_id === prof.id);
-
-        const projectCount = Math.max(matchedReqs.length, matchedProjs.length);
-
-        let currentStatus = "Registered (No Request)";
+        // Determine current status
+        let currentStatus = "Registered";
         if (matchedProjs.length > 0 && matchedProjs[0].project_status) {
           currentStatus = matchedProjs[0].project_status;
         } else if (matchedReqs.length > 0 && matchedReqs[0].status) {
           currentStatus = matchedReqs[0].status;
         }
 
+        // Flags for filter criteria
+        const hasUpcomingVisit = matchedVisits.some(
+          (v) => v.status === "Proposed" || v.status === "Confirmed" || v.status === "Scheduled"
+        );
+        const hasPendingRequest = matchedReqs.some((r) => {
+          const s = (r.status || "").toLowerCase();
+          return s !== "delivered" && s !== "approved" && s !== "completed";
+        });
+        const paymentPending =
+          matchedReqs.length > 0 &&
+          !matchedPays.some((p) => p.payment_status === "Advance Received" || p.payment_status === "Paid");
+
+        // Is account new (registered within 30 days)
+        const isNew = prof.created_at
+          ? Date.now() - new Date(prof.created_at).getTime() < 30 * 24 * 60 * 60 * 1000
+          : false;
+
         return {
-          ...prof,
-          projectCount,
+          id: prof.id,
+          full_name: prof.full_name || "Registered Customer",
+          mobile: prof.mobile,
+          email: prof.email || null,
+          village_city: prof.village_city,
+          district: prof.district,
+          avatar_url: prof.avatar_url,
+          created_at: prof.created_at,
+          updated_at: prof.updated_at,
+          projectsCount: matchedProjs.length,
+          requestsCount: matchedReqs.length,
+          visitsCount: matchedVisits.length,
+          paymentsCount: matchedPays.length,
           currentStatus,
+          accountStatus: isNew ? "New" : "Active",
+          hasUpcomingVisit,
+          hasPendingRequest,
+          paymentPending,
+          isRegisteredProfile: true,
         };
       });
 
-      setCustomers(enriched);
+      // Also ensure any guest request not yet linked to customer_profiles is included
+      const existingMobiles = new Set(
+        enrichedProfiles.map((p) => (p.mobile ? p.mobile.replace(/\D/g, "").slice(-10) : "")).filter(Boolean)
+      );
+
+      reqList.forEach((r) => {
+        const cleanR = r.mobile ? r.mobile.replace(/\D/g, "").slice(-10) : "";
+        if (cleanR && !existingMobiles.has(cleanR)) {
+          existingMobiles.add(cleanR);
+          const matchedProjs = projList.filter((p) => p.customer_request_id === r.id);
+          const matchedVisits = visitList.filter((v) => v.request_id === r.id);
+          const matchedPays = payList.filter((py) => py.request_id === r.id);
+
+          enrichedProfiles.push({
+            id: r.customer_user_id || `req-${r.id}`,
+            full_name: r.full_name,
+            mobile: r.mobile,
+            email: null,
+            village_city: r.village_city,
+            district: r.district,
+            created_at: r.created_at,
+            projectsCount: Math.max(matchedProjs.length, 1),
+            requestsCount: 1,
+            visitsCount: matchedVisits.length > 0 ? matchedVisits.length : 1,
+            paymentsCount: matchedPays.length,
+            currentStatus: r.status || "Rough Plan",
+            accountStatus: "Active",
+            hasUpcomingVisit: matchedVisits.some((v) => v.status === "Proposed" || v.status === "Confirmed"),
+            hasPendingRequest: true,
+            paymentPending: matchedPays.length === 0,
+            isRegisteredProfile: false,
+          });
+        }
+      });
+
+      setCustomers(enrichedProfiles);
     } catch (err: any) {
       console.error("Error fetching customers directory:", err);
       setError(err?.message || "Failed to load customers directory from Supabase.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [supabase]);
 
   useEffect(() => {
     fetchDirectory();
-  }, []);
+
+    // Supabase Realtime Subscription for live updates
+    const channel = supabase
+      .channel("admin-customers-directory-channel")
+      .on("postgres_changes", { event: "*", schema: "public", table: "customer_profiles" }, () => fetchDirectory())
+      .on("postgres_changes", { event: "*", schema: "public", table: "customer_requests" }, () => fetchDirectory())
+      .on("postgres_changes", { event: "*", schema: "public", table: "projects" }, () => fetchDirectory())
+      .on("postgres_changes", { event: "*", schema: "public", table: "site_visits" }, () => fetchDirectory())
+      .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, () => fetchDirectory())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchDirectory, supabase]);
 
   // Filter list
   const filteredCustomers = useMemo(() => {
     return customers.filter((c) => {
-      // Search text
+      // 1. Search text (Full Name, Mobile, Email, Village/City, District)
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase().trim();
         const nameMatch = c.full_name?.toLowerCase().includes(query);
-        const mobileMatch = c.mobile?.includes(query);
+        const mobileMatch = c.mobile?.toLowerCase().includes(query);
+        const emailMatch = c.email?.toLowerCase().includes(query);
         const cityMatch = c.village_city?.toLowerCase().includes(query);
         const distMatch = c.district?.toLowerCase().includes(query);
-        if (!nameMatch && !mobileMatch && !cityMatch && !distMatch) {
+        if (!nameMatch && !mobileMatch && !emailMatch && !cityMatch && !distMatch) {
           return false;
         }
       }
 
-      // District filter
+      // 2. District filter
       if (districtFilter !== "ALL") {
         if (!c.district || c.district.toLowerCase() !== districtFilter.toLowerCase()) {
           return false;
         }
       }
 
-      // Status filter
+      // 3. Status filter (Section 5 requirements)
       if (statusFilter !== "ALL") {
-        if (statusFilter === "WITH_PROJECTS" && (c.projectCount || 0) === 0) {
+        if (statusFilter === "ACTIVE" && c.projectsCount === 0 && c.requestsCount === 0 && c.visitsCount === 0) {
           return false;
         }
-        if (statusFilter === "NO_PROJECTS" && (c.projectCount || 0) > 0) {
+        if (statusFilter === "NEW" && c.accountStatus !== "New") {
+          return false;
+        }
+        if (statusFilter === "HAS_PROJECT" && c.projectsCount === 0) {
+          return false;
+        }
+        if (statusFilter === "PENDING_REQUEST" && !c.hasPendingRequest) {
+          return false;
+        }
+        if (statusFilter === "UPCOMING_VISIT" && !c.hasUpcomingVisit) {
+          return false;
+        }
+        if (statusFilter === "PAYMENT_PENDING" && !c.paymentPending) {
           return false;
         }
       }
@@ -201,11 +339,37 @@ export default function AdminCustomersDirectoryPage() {
             </div>
 
             <span className="rounded-full bg-[#063b2c] px-2.5 py-0.5 text-xs font-bold text-[#f4cf72]">
-              {customers.length} Registered
+              {customers.length} Customers
             </span>
           </div>
 
           <div className="flex items-center gap-2">
+            {/* View Mode Toggle */}
+            <div className="hidden sm:flex items-center rounded-xl border border-[#ded9cf] bg-[#faf8f4] p-1">
+              <button
+                type="button"
+                onClick={() => setViewMode("cards")}
+                className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                  viewMode === "cards" ? "bg-[#063b2c] text-[#f4cf72] shadow-sm" : "text-black/60 hover:text-black"
+                }`}
+                title="Card View"
+              >
+                <LayoutGrid size={14} />
+                <span>Cards</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("table")}
+                className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                  viewMode === "table" ? "bg-[#063b2c] text-[#f4cf72] shadow-sm" : "text-black/60 hover:text-black"
+                }`}
+                title="Table View"
+              >
+                <TableIcon size={14} />
+                <span>Table</span>
+              </button>
+            </div>
+
             <button
               type="button"
               onClick={fetchDirectory}
@@ -221,15 +385,22 @@ export default function AdminCustomersDirectoryPage() {
 
       {/* Main Content Area */}
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        {/* Intro & Architecture Distinction Card */}
+        {/* Intro & Live Summary Bar */}
         <div className="mb-6 rounded-2xl border border-[#e4dfd5] bg-white p-4 shadow-sm sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="font-serif text-base font-bold text-[#063b2c] sm:text-lg">
-                All Registered Customers ({customers.length})
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-[#eef5ee] border border-[#d2e2d5] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#063b2c]">
+                  Direct Supabase public.customer_profiles
+                </span>
+                <span className="text-xs text-black/40">•</span>
+                <span className="text-xs font-semibold text-[#0c7a62]">Live Synchronized</span>
+              </div>
+              <h2 className="mt-1 font-serif text-base font-bold text-[#063b2c] sm:text-lg">
+                Complete Customer Directory ({customers.length})
               </h2>
-              <p className="mt-0.5 text-xs text-black/60 sm:text-sm">
-                Shows all customer accounts registered in Sarda Homeplan database (public.customer_profiles).
+              <p className="mt-0.5 text-xs text-black/60">
+                Primary business admin interface for managing all Sarda Homeplan customers, house-planning requests, site visits and payments.
               </p>
             </div>
 
@@ -239,16 +410,16 @@ export default function AdminCustomersDirectoryPage() {
                 className="inline-flex items-center gap-1.5 rounded-xl bg-[#063b2c] px-3.5 py-2 text-xs font-bold text-[#f4cf72] transition hover:bg-[#094d3a]"
               >
                 <FolderKanban size={14} />
-                <span>View Customer Requests</span>
+                <span>Go to Admin Dashboard</span>
               </Link>
             </div>
           </div>
         </div>
 
-        {/* Search & Filter Toolbar */}
+        {/* Search & Filter Toolbar (Section 4 & 5) */}
         <div className="mb-6 grid gap-3 sm:grid-cols-12">
           {/* Search Input */}
-          <div className="relative sm:col-span-6 lg:col-span-6">
+          <div className="relative sm:col-span-5 lg:col-span-5">
             <Search
               size={17}
               className="absolute left-3.5 top-1/2 -translate-y-1/2 text-black/40"
@@ -257,7 +428,7 @@ export default function AdminCustomersDirectoryPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name, mobile number, village/city, district..."
+              placeholder="Search by name, mobile, email, village/city, district..."
               className="h-11 w-full rounded-xl border border-[#ded9cf] bg-white pl-10 pr-4 text-xs text-[#17221b] placeholder-black/40 outline-none transition focus:border-[#063b2c] focus:ring-1 focus:ring-[#063b2c]"
             />
           </div>
@@ -278,16 +449,20 @@ export default function AdminCustomersDirectoryPage() {
             </select>
           </div>
 
-          {/* Status Filter */}
-          <div className="sm:col-span-3 lg:col-span-3">
+          {/* Useful Filters (Section 5) */}
+          <div className="sm:col-span-4 lg:col-span-4">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="h-11 w-full rounded-xl border border-[#ded9cf] bg-white px-3 text-xs font-medium text-[#17221b] outline-none transition focus:border-[#063b2c]"
             >
-              <option value="ALL">All Project Statuses</option>
-              <option value="WITH_PROJECTS">Has Submitted Requests / Projects</option>
-              <option value="NO_PROJECTS">Registered Only (No Requests)</option>
+              <option value="ALL">All Customers</option>
+              <option value="ACTIVE">Active (With Projects / Requests)</option>
+              <option value="NEW">New (Registered in last 30 days)</option>
+              <option value="HAS_PROJECT">Has Project</option>
+              <option value="PENDING_REQUEST">Has Pending Request</option>
+              <option value="UPCOMING_VISIT">Has Upcoming Visit</option>
+              <option value="PAYMENT_PENDING">Payment Pending</option>
             </select>
           </div>
         </div>
@@ -297,7 +472,7 @@ export default function AdminCustomersDirectoryPage() {
           <div className="rounded-2xl border border-[#ded9cf] bg-white p-12 text-center shadow-sm">
             <RefreshCw size={28} className="mx-auto animate-spin text-[#063b2c]" />
             <p className="mt-3 text-sm font-semibold text-black/70">
-              Loading customers directory from Supabase...
+              Loading customers directory from Supabase public.customer_profiles...
             </p>
           </div>
         )}
@@ -349,168 +524,188 @@ export default function AdminCustomersDirectoryPage() {
           </div>
         )}
 
-        {/* Results List: Mobile Cards (< 768px) + Desktop Table (>= 768px) */}
+        {/* Results List: Cards Layout (Section 3) OR Table Layout */}
         {!loading && !error && filteredCustomers.length > 0 && (
           <>
-            {/* 1. Mobile Cards Layout */}
-            <div className="grid gap-3.5 md:hidden">
-              {filteredCustomers.map((cust) => (
-                <div
-                  key={cust.id}
-                  className="rounded-2xl border border-[#ded9cf] bg-white p-4 shadow-sm space-y-3"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-serif text-base font-bold text-[#17221b]">
-                          {cust.full_name || "Registered Customer"}
+            {viewMode === "cards" ? (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredCustomers.map((cust) => (
+                  <div
+                    key={cust.id}
+                    className="rounded-2xl border border-[#ded9cf] bg-white p-5 shadow-sm transition hover:shadow-md hover:border-[#0c7a62]/40 flex flex-col justify-between space-y-4"
+                  >
+                    {/* Header: Name, Location, Status */}
+                    <div className="space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#063b2c] text-[#f4cf72] font-serif font-bold text-base shadow-sm">
+                            {cust.full_name ? cust.full_name.charAt(0).toUpperCase() : "C"}
+                          </div>
+                          <div>
+                            <h3 className="font-serif text-base font-bold text-[#17221b]">
+                              {cust.full_name || "Registered Customer"}
+                            </h3>
+                            <p className="text-xs font-semibold text-[#063b2c]">
+                              {cust.mobile || "No Mobile"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <span className="inline-flex items-center gap-1 rounded-full border border-[#cce5d4] bg-[#eaf5ed] px-2.5 py-0.5 text-[10px] font-bold text-[#0c7a62] shrink-0">
+                          {cust.currentStatus || "Active"}
                         </span>
                       </div>
-                      <div className="mt-1 flex items-center gap-1.5 text-xs text-black/60">
+
+                      <div className="flex items-center gap-1.5 text-xs text-black/60 pt-1">
                         <MapPin size={13} className="text-[#063b2c] shrink-0" />
-                        <span>
+                        <span className="truncate">
                           {cust.village_city || "Village / City"}, {cust.district || "District"}
                         </span>
                       </div>
                     </div>
 
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold shrink-0 ${
-                        (cust.projectCount || 0) > 0
-                          ? "border-[#cce5d4] bg-[#eaf5ed] text-[#0c7a62]"
-                          : "border-[#e0ded8] bg-[#f6f4ee] text-black/55"
-                      }`}
-                    >
-                      {cust.currentStatus || "Registered"}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 rounded-xl bg-[#faf8f3] p-2.5 text-xs">
-                    <div>
-                      <span className="text-[11px] text-black/45">Mobile:</span>
-                      <p className="font-semibold text-[#17221b] truncate">
-                        {cust.mobile || "-"}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-[11px] text-black/45">Projects Count:</span>
-                      <p className="font-bold text-[#063b2c]">
-                        {cust.projectCount || 0} Request{cust.projectCount === 1 ? "" : "s"}
-                      </p>
-                    </div>
-                    <div className="col-span-2 pt-1 border-t border-[#ede8de] flex items-center justify-between text-[11px] text-black/50">
-                      <span>Registered: {formatDate(cust.created_at)}</span>
-                    </div>
-                  </div>
-
-                  <div className="pt-1">
-                    <Link
-                      href={`/admin/customers/${cust.id}`}
-                      className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#063b2c] py-2.5 text-xs font-bold text-[#f4cf72] transition hover:bg-[#094d3a]"
-                    >
-                      <span>View Profile</span>
-                      <ChevronRight size={14} />
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* 2. Desktop Table Layout */}
-            <div className="hidden md:block overflow-hidden rounded-2xl border border-[#ded9cf] bg-white shadow-sm">
-              <table className="w-full border-collapse text-left text-xs">
-                <thead>
-                  <tr className="border-b border-[#ded9cf] bg-[#faf8f3] text-[11px] font-bold uppercase tracking-wider text-black/60">
-                    <th className="px-5 py-3.5">Customer Name</th>
-                    <th className="px-5 py-3.5">Contact Details</th>
-                    <th className="px-5 py-3.5">Location</th>
-                    <th className="px-5 py-3.5">Registered Date</th>
-                    <th className="px-5 py-3.5 text-center">Projects</th>
-                    <th className="px-5 py-3.5">Current Status</th>
-                    <th className="px-5 py-3.5 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#eee9df]">
-                  {filteredCustomers.map((cust) => (
-                    <tr
-                      key={cust.id}
-                      className="transition hover:bg-[#fbf9f4]"
-                    >
-                      <td className="px-5 py-4 font-bold text-sm text-[#17221b]">
-                        <div className="flex items-center gap-2.5">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#063b2c]/10 text-[#063b2c] font-bold text-xs uppercase">
-                            {cust.full_name ? cust.full_name.charAt(0) : "C"}
-                          </div>
-                          <div>
-                            <span>{cust.full_name || "Registered Customer"}</span>
-                          </div>
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <div className="space-y-0.5">
-                          <div className="flex items-center gap-1 font-semibold text-[#17221b]">
-                            <Phone size={12} className="text-[#063b2c]" />
-                            <span>{cust.mobile || "-"}</span>
-                          </div>
-                          {cust.email && (
-                            <div className="flex items-center gap-1 text-[11px] text-black/55">
-                              <Mail size={12} />
-                              <span className="truncate max-w-[150px]">{cust.email}</span>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-1 text-black/75">
-                          <MapPin size={13} className="text-[#063b2c] shrink-0" />
-                          <span>
-                            {cust.village_city ? `${cust.village_city}, ` : ""}
-                            {cust.district || "-"}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-4 text-black/60">
-                        <div className="flex items-center gap-1">
-                          <Calendar size={13} />
-                          <span>{formatDate(cust.created_at)}</span>
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-4 text-center">
-                        <span className="inline-flex items-center rounded-full bg-[#f4ead0] px-2.5 py-0.5 font-bold text-[#8c6710]">
-                          {cust.projectCount || 0}
+                    {/* Three Core Metrics (Section 3 Specification) */}
+                    <div className="grid grid-cols-3 gap-2 rounded-xl bg-[#faf8f3] p-3 text-center border border-[#ede8de]">
+                      <div>
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-black/45">
+                          Projects
                         </span>
-                      </td>
+                        <p className="mt-0.5 font-bold text-sm text-[#063b2c]">
+                          {cust.projectsCount}
+                        </p>
+                      </div>
 
-                      <td className="px-5 py-4">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${
-                            (cust.projectCount || 0) > 0
-                              ? "border-[#cce5d4] bg-[#eaf5ed] text-[#0c7a62]"
-                              : "border-[#e0ded8] bg-[#f6f4ee] text-black/55"
-                          }`}
-                        >
-                          {cust.currentStatus || "Registered"}
+                      <div className="border-x border-[#ede8de]">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-black/45">
+                          Requests
                         </span>
-                      </td>
+                        <p className="mt-0.5 font-bold text-sm text-[#063b2c]">
+                          {cust.requestsCount}
+                        </p>
+                      </div>
 
-                      <td className="px-5 py-4 text-right">
-                        <Link
-                          href={`/admin/customers/${cust.id}`}
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-[#063b2c] px-3.5 py-1.5 text-xs font-bold text-[#f4cf72] shadow-sm transition hover:bg-[#094d3a]"
-                        >
-                          <span>View Profile</span>
-                          <ChevronRight size={13} />
-                        </Link>
-                      </td>
+                      <div>
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-black/45">
+                          Visits
+                        </span>
+                        <p className="mt-0.5 font-bold text-sm text-[#063b2c]">
+                          {cust.visitsCount}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Footer Actions: WhatsApp / Call + [ View Profile ] */}
+                    <div className="space-y-2 pt-1 border-t border-[#f0ebdf]">
+                      <div className="flex items-center gap-2">
+                        {cust.mobile && (
+                          <a
+                            href={`https://wa.me/91${cust.mobile.replace(/\D/g, "").slice(-10)}?text=${encodeURIComponent(
+                              `Namaste ${cust.full_name || "Ji"}, Sarda Homeplan se sampark kar rahe hain.`
+                            )}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 inline-flex items-center justify-center gap-1 rounded-xl bg-[#25D366] py-1.5 text-[11px] font-bold text-white hover:bg-[#1fb355] transition"
+                            title="Chat on WhatsApp"
+                          >
+                            <MessageCircle size={13} />
+                            <span>WhatsApp</span>
+                          </a>
+                        )}
+
+                        {cust.mobile && (
+                          <a
+                            href={`tel:${cust.mobile}`}
+                            className="inline-flex items-center justify-center rounded-xl border border-[#ded9cf] p-1.5 text-black/70 hover:bg-[#faf8f4] transition"
+                            title="Call Customer"
+                          >
+                            <Phone size={14} />
+                          </a>
+                        )}
+                      </div>
+
+                      <Link
+                        href={`/admin/customers/${cust.id}`}
+                        className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#063b2c] py-2.5 text-xs font-bold text-[#f4cf72] transition hover:bg-[#094d3a] shadow-sm"
+                      >
+                        <span>View Profile</span>
+                        <ChevronRight size={14} />
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              /* Desktop Table Layout */
+              <div className="overflow-hidden rounded-2xl border border-[#ded9cf] bg-white shadow-sm">
+                <table className="w-full border-collapse text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-[#ded9cf] bg-[#faf8f3] text-[11px] font-bold uppercase tracking-wider text-black/60">
+                      <th className="px-5 py-3.5">Customer Name</th>
+                      <th className="px-5 py-3.5">Contact Details</th>
+                      <th className="px-5 py-3.5">Location</th>
+                      <th className="px-5 py-3.5 text-center">Projects</th>
+                      <th className="px-5 py-3.5 text-center">Requests</th>
+                      <th className="px-5 py-3.5 text-center">Visits</th>
+                      <th className="px-5 py-3.5">Status</th>
+                      <th className="px-5 py-3.5 text-right">Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-[#eee9df]">
+                    {filteredCustomers.map((cust) => (
+                      <tr key={cust.id} className="transition hover:bg-[#fbf9f4]">
+                        <td className="px-5 py-4 font-bold text-sm text-[#17221b]">
+                          <div className="flex items-center gap-2.5">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#063b2c]/10 text-[#063b2c] font-bold text-xs uppercase">
+                              {cust.full_name ? cust.full_name.charAt(0) : "C"}
+                            </div>
+                            <div>
+                              <span>{cust.full_name || "Registered Customer"}</span>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <p className="font-semibold text-[#17221b]">{cust.mobile || "-"}</p>
+                          {cust.email && <p className="text-[11px] text-black/50">{cust.email}</p>}
+                        </td>
+
+                        <td className="px-5 py-4 text-black/70">
+                          {cust.village_city || "-"}, {cust.district || "-"}
+                        </td>
+
+                        <td className="px-5 py-4 text-center font-bold text-[#063b2c]">
+                          {cust.projectsCount}
+                        </td>
+
+                        <td className="px-5 py-4 text-center font-bold text-[#063b2c]">
+                          {cust.requestsCount}
+                        </td>
+
+                        <td className="px-5 py-4 text-center font-bold text-[#063b2c]">
+                          {cust.visitsCount}
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <span className="inline-flex items-center rounded-full border border-[#cce5d4] bg-[#eaf5ed] px-2.5 py-0.5 text-[10px] font-bold text-[#0c7a62]">
+                            {cust.currentStatus || "Active"}
+                          </span>
+                        </td>
+
+                        <td className="px-5 py-4 text-right">
+                          <Link
+                            href={`/admin/customers/${cust.id}`}
+                            className="inline-flex items-center gap-1 rounded-xl bg-[#063b2c] px-3.5 py-1.5 text-xs font-bold text-[#f4cf72] hover:bg-[#094d3a] transition shadow-sm"
+                          >
+                            <span>View Profile</span>
+                            <ChevronRight size={13} />
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </>
         )}
       </main>
