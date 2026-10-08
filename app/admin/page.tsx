@@ -791,6 +791,30 @@ export default function AdminDashboard() {
     });
   };
 
+  // Mark tab as seen and clear badge count
+  const markTabAsSeen = (tab: AdminTab) => {
+    setActiveTab(tab);
+    setSidebarOpen(false);
+    setSelectedWorkflowFilter(null);
+    if (tab === "overview") return;
+    setSeenBadges((prev) => {
+      let cur = 0;
+      if (tab === "requests") cur = sidebarCounts.customerRequests;
+      else if (tab === "customers") cur = sidebarCounts.customers;
+      else if (tab === "projects") cur = sidebarCounts.projects;
+      else if (tab === "visits") cur = sidebarCounts.siteVisits;
+      else if (tab === "plans") cur = sidebarCounts.plans;
+      else if (tab === "payments") cur = sidebarCounts.payments;
+      else if (tab === "notifications") cur = unreadNotifsCount;
+
+      const next = { ...prev, [tab]: cur };
+      try {
+        localStorage.setItem("sarda_admin_seen_badges", JSON.stringify(next));
+      } catch (_) {}
+      return next;
+    });
+  };
+
   // Sync Seen Badges with Active Tab (Point 5: Once viewed, sidebar badge numbers clear and persist)
   useEffect(() => {
     if (activeTab === "overview") return;
@@ -1569,7 +1593,7 @@ export default function AdminDashboard() {
   }, [pendingReschedules, requests, siteVisitsList]);
 
   return (
-    <main className="min-h-screen bg-[#f3efe6] text-[#17221b]">
+    <div className="flex h-screen w-full overflow-hidden bg-[#f3efe6] text-[#17221b]">
       {/* =========================================================
           MOBILE OVERLAY
       ========================================================= */}
@@ -1583,261 +1607,229 @@ export default function AdminDashboard() {
       )}
 
       {/* =========================================================
-          APP LAYOUT
+          SIDEBAR (FULL NAVIGATION ACCORDING TO PDF SPECIFICATION)
       ========================================================= */}
-      <div className="flex min-h-screen w-full">
-        {/* =========================================================
-            SIDEBAR (FULL NAVIGATION ACCORDING TO PDF SPECIFICATION)
-        ========================================================= */}
-        <aside
-          className={`
-            fixed inset-y-0 left-0 z-50
-            flex h-screen w-[290px] shrink-0 flex-col
-            overflow-y-auto
-            bg-[#073b2b] text-white
-            transition-transform duration-300
-            lg:sticky lg:top-0 lg:translate-x-0
-            ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-          `}
-        >
-          {/* LOGO */}
-          <div className="flex h-[82px] shrink-0 items-center px-7 border-b border-white/10">
-            <Link
-              href="/"
-              aria-label="Sarda Homeplan Home"
-              className="flex items-center gap-3.5 group transition"
+      <aside
+        className={`
+          fixed inset-y-0 left-0 z-50
+          flex h-full w-[280px] shrink-0 flex-col
+          bg-[#073b2b] text-white
+          transition-transform duration-300
+          lg:static lg:translate-x-0
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+        `}
+      >
+        {/* LOGO (PINNED TOP) */}
+        <div className="flex h-[72px] shrink-0 items-center px-6 border-b border-white/10">
+          <Link
+            href="/"
+            aria-label="Sarda Homeplan Home"
+            className="flex items-center gap-3.5 group transition"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#d7b56d] text-[#17382c] shadow-sm group-hover:scale-105 transition">
+              <House size={22} strokeWidth={2} />
+            </div>
+            <div>
+              <p className="font-serif text-[20px] font-bold tracking-wide text-white group-hover:text-[#d7b56d] transition leading-tight">
+                SARDA
+              </p>
+              <p className="text-[9px] font-semibold tracking-[0.25em] text-[#d7b56d]">
+                HOMEPLAN ADMIN
+              </p>
+            </div>
+          </Link>
+        </div>
+
+        {/* NAVIGATION LINKS (COMPACT, FITS PERFECTLY WITHOUT CUTTING OFF) */}
+        <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-0.5 no-scrollbar">
+          <NavItem
+            icon={LayoutDashboard}
+            label="Dashboard Overview"
+            active={activeTab === "overview"}
+            onClick={() => markTabAsSeen("overview")}
+          />
+
+          <NavItem
+            icon={ClipboardList}
+            label="Customer Requests"
+            badge={requestsBadgeCount > 0 ? String(requestsBadgeCount) : undefined}
+            active={activeTab === "requests"}
+            onClick={() => markTabAsSeen("requests")}
+          />
+
+          <NavItem
+            icon={Users}
+            label="Customers Directory"
+            badge={customersBadgeCount > 0 ? String(customersBadgeCount) : undefined}
+            active={activeTab === "customers"}
+            onClick={() => {
+              setSeenBadges((prev) => {
+                const next = { ...prev, customers: sidebarCounts.customers };
+                try {
+                  localStorage.setItem("sarda_admin_seen_badges", JSON.stringify(next));
+                } catch (_) {}
+                return next;
+              });
+              window.location.href = "/admin/customers";
+            }}
+          />
+
+          <NavItem
+            icon={FolderKanban}
+            label="Projects Tracking"
+            badge={projectsBadgeCount > 0 ? String(projectsBadgeCount) : undefined}
+            active={activeTab === "projects"}
+            onClick={() => markTabAsSeen("projects")}
+          />
+
+          <NavItem
+            icon={MapPin}
+            label="Site Visits & Reschedules"
+            badge={visitsBadgeCount > 0 ? String(visitsBadgeCount) : undefined}
+            active={activeTab === "visits"}
+            onClick={() => markTabAsSeen("visits")}
+          />
+
+          <NavItem
+            icon={FileImage}
+            label="Plans & Deliverables"
+            badge={plansBadgeCount > 0 ? String(plansBadgeCount) : undefined}
+            active={activeTab === "plans"}
+            onClick={() => markTabAsSeen("plans")}
+          />
+
+          <NavItem
+            icon={Wallet}
+            label="Payments & Advance"
+            badge={paymentsBadgeCount > 0 ? String(paymentsBadgeCount) : undefined}
+            active={activeTab === "payments"}
+            onClick={() => markTabAsSeen("payments")}
+          />
+
+          <NavItem
+            icon={FileCheck2}
+            label="Public Portfolio"
+            active={activeTab === "portfolio"}
+            onClick={() => markTabAsSeen("portfolio")}
+          />
+
+          <NavItem
+            icon={Bell}
+            label="Notifications"
+            badge={notificationsBadgeCount > 0 ? String(notificationsBadgeCount) : undefined}
+            active={activeTab === "notifications"}
+            onClick={() => markTabAsSeen("notifications")}
+          />
+
+          <NavItem
+            icon={Settings}
+            label="Business Settings"
+            active={activeTab === "settings"}
+            onClick={() => markTabAsSeen("settings")}
+          />
+        </nav>
+
+        {/* SIDEBAR FOOTER MOTIF (PINNED BOTTOM) */}
+        <div className="shrink-0 p-3 border-t border-white/10">
+          <div className="rounded-xl bg-[#0e4836] p-2.5 text-xs border border-white/10">
+            <p className="font-semibold text-[#f5d58f] flex items-center gap-1.5 text-[11px]">
+              <Compass size={13} />
+              <span>Sarda Operations</span>
+            </p>
+            <p className="mt-0.5 text-[10px] text-white/70 leading-relaxed">
+              Owner-controlled site visits &amp; verified blueprint delivery.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="mt-2.5 flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-white/20 text-xs font-semibold text-white transition hover:bg-white/10"
+          >
+            <LogOut size={15} />
+            <span>Sign Out</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* =========================================================
+          MAIN DASHBOARD CONTENT AREA (PERMANENTLY PINNED HEADER)
+      ========================================================= */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        {/* HEADER */}
+        <header className="shrink-0 flex h-[72px] items-center gap-3 border-b border-[#ded8cd] bg-[#f8f5ed] px-5 z-20">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            className="rounded-xl p-2 text-[#17221b] hover:bg-black/5 lg:hidden"
+          >
+            <Menu size={22} />
+          </button>
+
+          {/* LIVE SEARCH BAR */}
+          <div className="relative max-w-[560px] flex-1">
+            <Search
+              size={18}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-black/40"
+            />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search customers, phones, locations or plot sizes..."
+              className="h-[42px] w-full rounded-xl border border-[#ded9cf] bg-white/95 pl-11 pr-10 text-xs outline-none transition placeholder:text-black/40 focus:border-[#0c7a62]"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-black/40 hover:bg-black/5"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          {/* HEADER ACTIONS */}
+          <div className="ml-auto flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => markTabAsSeen("notifications")}
+              className="relative rounded-xl p-2.5 hover:bg-black/5 transition"
+              title="Notifications"
             >
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#d7b56d] text-[#17382c] shadow-sm group-hover:scale-105 transition">
-                <House size={24} strokeWidth={2} />
+              <Bell size={20} className="text-[#17221b]" />
+              {notificationsBadgeCount > 0 && (
+                <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#c2413a] text-[10px] font-bold text-white px-1">
+                  {notificationsBadgeCount}
+                </span>
+              )}
+            </button>
+
+            <div className="hidden h-7 w-px bg-[#d8d2c8] sm:block" />
+
+            <Link
+              href="/admin/profile"
+              className="flex items-center gap-2.5 rounded-2xl p-1.5 hover:bg-black/5 transition group"
+              title="View Admin Profile & Security Settings"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#d7b56d] text-sm font-bold text-[#17382c] shadow-sm group-hover:ring-2 group-hover:ring-[#063b2c] transition">
+                {adminProfile?.full_name ? adminProfile.full_name.slice(0, 2).toUpperCase() : "SH"}
               </div>
-              <div>
-                <p className="font-serif text-[22px] font-bold tracking-wide text-white group-hover:text-[#d7b56d] transition">
-                  SARDA
+              <div className="hidden text-left leading-tight sm:block">
+                <p className="text-xs font-bold text-[#17221b] group-hover:text-[#063b2c] transition">
+                  {adminProfile?.full_name || "Admin Office"}
                 </p>
-                <p className="text-[10px] font-semibold tracking-[0.28em] text-[#d7b56d]">
-                  HOMEPLAN ADMIN
+                <p className="text-[10px] text-black/50">
+                  {adminProfile?.role || "Super Admin"} • Pratapgarh / Prayagraj
                 </p>
               </div>
             </Link>
           </div>
+        </header>
 
-          {/* NAVIGATION LINKS */}
-          <nav className="flex-1 px-3 py-4 space-y-1">
-            <NavItem
-              icon={LayoutDashboard}
-              label="Dashboard Overview"
-              active={activeTab === "overview"}
-              onClick={() => {
-                setActiveTab("overview");
-                setSidebarOpen(false);
-              }}
-            />
-
-            <NavItem
-              icon={ClipboardList}
-              label="Customer Requests"
-              badge={requestsBadgeCount > 0 ? String(requestsBadgeCount) : undefined}
-              active={activeTab === "requests"}
-              onClick={() => {
-                setActiveTab("requests");
-                setSelectedWorkflowFilter(null);
-                setSidebarOpen(false);
-              }}
-            />
-
-            <NavItem
-              icon={Users}
-              label="Customers Directory"
-              badge={customersBadgeCount > 0 ? String(customersBadgeCount) : undefined}
-              active={activeTab === "customers"}
-              onClick={() => {
-                setSeenBadges((prev) => {
-                  const next = { ...prev, customers: sidebarCounts.customers };
-                  try {
-                    localStorage.setItem("sarda_admin_seen_badges", JSON.stringify(next));
-                  } catch (_) {}
-                  return next;
-                });
-                window.location.href = "/admin/customers";
-              }}
-            />
-
-            <NavItem
-              icon={FolderKanban}
-              label="Projects Tracking"
-              badge={projectsBadgeCount > 0 ? String(projectsBadgeCount) : undefined}
-              active={activeTab === "projects"}
-              onClick={() => {
-                setActiveTab("projects");
-                setSidebarOpen(false);
-              }}
-            />
-
-            <NavItem
-              icon={MapPin}
-              label="Site Visits & Reschedules"
-              badge={visitsBadgeCount > 0 ? String(visitsBadgeCount) : undefined}
-              active={activeTab === "visits"}
-              onClick={() => {
-                setActiveTab("visits");
-                setSidebarOpen(false);
-              }}
-            />
-
-            <NavItem
-              icon={FileImage}
-              label="Plans & Deliverables"
-              badge={plansBadgeCount > 0 ? String(plansBadgeCount) : undefined}
-              active={activeTab === "plans"}
-              onClick={() => {
-                setActiveTab("plans");
-                setSidebarOpen(false);
-              }}
-            />
-
-            <NavItem
-              icon={Wallet}
-              label="Payments & Advance"
-              badge={paymentsBadgeCount > 0 ? String(paymentsBadgeCount) : undefined}
-              active={activeTab === "payments"}
-              onClick={() => {
-                setActiveTab("payments");
-                setSidebarOpen(false);
-              }}
-            />
-
-            <NavItem
-              icon={FileCheck2}
-              label="Public Portfolio"
-              active={activeTab === "portfolio"}
-              onClick={() => {
-                setActiveTab("portfolio");
-                setSidebarOpen(false);
-              }}
-            />
-
-            <NavItem
-              icon={Bell}
-              label="Notifications"
-              badge={notificationsBadgeCount > 0 ? String(notificationsBadgeCount) : undefined}
-              active={activeTab === "notifications"}
-              onClick={() => {
-                setActiveTab("notifications");
-                setSidebarOpen(false);
-              }}
-            />
-
-            <NavItem
-              icon={Settings}
-              label="Business Settings"
-              active={activeTab === "settings"}
-              onClick={() => {
-                setActiveTab("settings");
-                setSidebarOpen(false);
-              }}
-            />
-          </nav>
-
-          {/* SIDEBAR FOOTER MOTIF */}
-          <div className="shrink-0 p-4 border-t border-white/10">
-            <div className="rounded-xl bg-[#0e4836] p-3 text-xs border border-white/10">
-              <p className="font-semibold text-[#f5d58f] flex items-center gap-1.5">
-                <Compass size={14} />
-                <span>Sarda Operations</span>
-              </p>
-              <p className="mt-1 text-[11px] text-white/70 leading-relaxed">
-                Owner-controlled site visits & verified blueprint delivery.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-white/20 text-xs font-semibold text-white transition hover:bg-white/10"
-            >
-              <LogOut size={16} />
-              <span>Sign Out</span>
-            </button>
-          </div>
-        </aside>
-
-        {/* =========================================================
-            MAIN DASHBOARD CONTENT AREA
-        ========================================================= */}
-        <div className="min-w-0 flex-1 flex flex-col">
-          {/* HEADER */}
-          <header className="sticky top-0 z-30 flex h-[72px] items-center gap-3 border-b border-[#ded8cd] bg-[#f8f5ed]/95 px-5 backdrop-blur-xl">
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(true)}
-              className="rounded-xl p-2 text-[#17221b] hover:bg-black/5 lg:hidden"
-            >
-              <Menu size={22} />
-            </button>
-
-            {/* LIVE SEARCH BAR */}
-            <div className="relative max-w-[560px] flex-1">
-              <Search
-                size={18}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-black/40"
-              />
-              <input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search customers, phones, locations or plot sizes..."
-                className="h-[42px] w-full rounded-xl border border-[#ded9cf] bg-white/95 pl-11 pr-10 text-xs outline-none transition placeholder:text-black/40 focus:border-[#0c7a62]"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-black/40 hover:bg-black/5"
-                >
-                  <X size={14} />
-                </button>
-              )}
-            </div>
-
-            {/* HEADER ACTIONS */}
-            <div className="ml-auto flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setActiveTab("notifications")}
-                className="relative rounded-xl p-2.5 hover:bg-black/5 transition"
-                title="Notifications"
-              >
-                <Bell size={20} className="text-[#17221b]" />
-                {sidebarCounts.notifications > 0 && (
-                  <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#c2413a] text-[10px] font-bold text-white px-1">
-                    {sidebarCounts.notifications}
-                  </span>
-                )}
-              </button>
-
-              <div className="hidden h-7 w-px bg-[#d8d2c8] sm:block" />
-
-              <Link
-                href="/admin/profile"
-                className="flex items-center gap-2.5 rounded-2xl p-1.5 hover:bg-black/5 transition group"
-                title="View Admin Profile & Security Settings"
-              >
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#d7b56d] text-sm font-bold text-[#17382c] shadow-sm group-hover:ring-2 group-hover:ring-[#063b2c] transition">
-                  {adminProfile?.full_name ? adminProfile.full_name.slice(0, 2).toUpperCase() : "SH"}
-                </div>
-                <div className="hidden text-left leading-tight sm:block">
-                  <p className="text-xs font-bold text-[#17221b] group-hover:text-[#063b2c] transition">
-                    {adminProfile?.full_name || "Admin Office"}
-                  </p>
-                  <p className="text-[10px] text-black/50">
-                    {adminProfile?.role || "Super Admin"} • Pratapgarh / Prayagraj
-                  </p>
-                </div>
-              </Link>
-            </div>
-          </header>
-
-          {/* BODY VIEWS ACCORDING TO ACTIVE TAB */}
-          <div className="flex-1 p-5 max-w-[1500px] w-full mx-auto space-y-6">
+        {/* SCROLLABLE MAIN CONTENT BODY */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+          <div className="max-w-[1500px] w-full mx-auto space-y-6 pb-12">
             {/* =========================================================
                 TAB 1: OVERVIEW / DASHBOARD HOME
             ========================================================= */}
@@ -3654,7 +3646,7 @@ export default function AdminDashboard() {
               </div>
             )}
           </div>
-        </div>
+        </main>
       </div>
 
       {/* =========================================================
@@ -4699,7 +4691,7 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
-    </main>
+    </div>
   );
 }
 
@@ -4723,16 +4715,16 @@ function NavItem({
     <button
       type="button"
       onClick={onClick}
-      className={`flex h-[42px] w-full items-center gap-3 rounded-xl px-3.5 text-left text-[12px] font-medium transition ${
+      className={`flex h-[38px] w-full items-center gap-2.5 rounded-xl px-3 text-left text-[12px] font-medium transition ${
         active
           ? "bg-[#2c5747] font-bold text-white shadow-sm"
           : "text-white/80 hover:bg-white/10 hover:text-white"
       }`}
     >
-      <Icon size={18} className={active ? "text-[#d7b56d]" : "text-white/70"} />
+      <Icon size={17} className={active ? "text-[#d7b56d]" : "text-white/70"} />
       <span className="flex-1 truncate">{label}</span>
       {badge && (
-        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#d84f4b] px-1.5 text-[9px] font-bold text-white">
+        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#d84f4b] px-1.5 text-[9px] font-bold text-white shrink-0">
           {badge}
         </span>
       )}
