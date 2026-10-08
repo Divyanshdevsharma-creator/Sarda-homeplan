@@ -1593,7 +1593,7 @@ export default function AdminDashboard() {
   }, [pendingReschedules, requests, siteVisitsList]);
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-[#f3efe6] text-[#17221b]">
+    <div className="min-h-screen w-full bg-[#f3efe6] text-[#17221b]">
       {/* =========================================================
           MOBILE OVERLAY
       ========================================================= */}
@@ -1607,15 +1607,15 @@ export default function AdminDashboard() {
       )}
 
       {/* =========================================================
-          SIDEBAR (FULL NAVIGATION ACCORDING TO PDF SPECIFICATION)
+          SIDEBAR (PERMANENTLY FIXED TO VIEWPORT ON ALL SCREENS)
       ========================================================= */}
       <aside
         className={`
-          fixed inset-y-0 left-0 z-50
-          flex h-full w-[280px] shrink-0 flex-col
+          fixed inset-y-0 left-0 z-40
+          flex h-screen w-[280px] flex-col
           bg-[#073b2b] text-white
           transition-transform duration-300
-          lg:static lg:translate-x-0
+          lg:translate-x-0
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
         `}
       >
@@ -1753,11 +1753,11 @@ export default function AdminDashboard() {
       </aside>
 
       {/* =========================================================
-          MAIN DASHBOARD CONTENT AREA (PERMANENTLY PINNED HEADER)
+          MAIN DASHBOARD CONTENT AREA (OFFSET BY 280PX ON DESKTOP)
       ========================================================= */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        {/* HEADER */}
-        <header className="shrink-0 flex h-[72px] items-center gap-3 border-b border-[#ded8cd] bg-[#f8f5ed] px-5 z-20">
+      <div className="flex min-h-screen w-full flex-col lg:pl-[280px]">
+        {/* HEADER (PINNED STICKY AT TOP) */}
+        <header className="sticky top-0 z-30 flex h-[72px] shrink-0 items-center gap-3 border-b border-[#ded8cd] bg-[#f8f5ed]/95 px-5 backdrop-blur-md">
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
@@ -1827,9 +1827,9 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        {/* SCROLLABLE MAIN CONTENT BODY */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-          <div className="max-w-[1500px] w-full mx-auto space-y-6 pb-12">
+        {/* DASHBOARD CONTENT BODY */}
+        <main className="flex-1 p-4 sm:p-6 pb-20">
+          <div className="max-w-[1500px] w-full mx-auto space-y-6">
             {/* =========================================================
                 TAB 1: OVERVIEW / DASHBOARD HOME
             ========================================================= */}
@@ -4715,13 +4715,13 @@ function NavItem({
     <button
       type="button"
       onClick={onClick}
-      className={`flex h-[38px] w-full items-center gap-2.5 rounded-xl px-3 text-left text-[12px] font-medium transition ${
+      className={`flex h-[36px] w-full items-center gap-2 rounded-xl px-3 text-left text-[12px] font-medium transition ${
         active
           ? "bg-[#2c5747] font-bold text-white shadow-sm"
           : "text-white/80 hover:bg-white/10 hover:text-white"
       }`}
     >
-      <Icon size={17} className={active ? "text-[#d7b56d]" : "text-white/70"} />
+      <Icon size={16} className={active ? "text-[#d7b56d]" : "text-white/70"} />
       <span className="flex-1 truncate">{label}</span>
       {badge && (
         <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#d84f4b] px-1.5 text-[9px] font-bold text-white shrink-0">
