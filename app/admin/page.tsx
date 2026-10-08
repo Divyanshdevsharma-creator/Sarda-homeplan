@@ -42,10 +42,12 @@ import {
   ShieldCheck,
   Compass,
   UserPlus,
+  CalendarClock,
 } from "lucide-react";
 
 import { useEffect, useState, useMemo, type ComponentType } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../lib/supabase-client";
 import { useAdminSidebarCounts } from "@/lib/hooks/useAdminSidebarCounts";
@@ -197,6 +199,7 @@ export default function AdminDashboard() {
   const [loadingReschedules, setLoadingReschedules] = useState(false);
   const [selectedVisit, setSelectedVisit] = useState<any | null>(null);
   const [rescheduleTarget, setRescheduleTarget] = useState<any | null>(null);
+  const [dashboardVisitDetail, setDashboardVisitDetail] = useState<any | null>(null);
   const [showScheduleVisit, setShowScheduleVisit] = useState(false);
   const [showVisitResponse, setShowVisitResponse] = useState(false);
   const [visitDate, setVisitDate] = useState("");
@@ -1324,7 +1327,7 @@ export default function AdminDashboard() {
     quality = 0.85
   ): Promise<string> => {
     return new Promise((resolve) => {
-      const img = new Image();
+      const img = new window.Image();
       img.onload = () => {
         let { width, height } = img;
         if (width > maxDimension || height > maxDimension) {
@@ -1578,7 +1581,7 @@ export default function AdminDashboard() {
       document.cookie = "sarada_admin_logged_in=; path=/; max-age=0;";
       document.cookie = "sarda_admin_logged_in=; path=/; max-age=0;";
     }
-    window.location.href = "/admin/login";
+    window.location.href = "/";
   };
 
   // Helper Stats Computed Dynamically from Supabase Data
@@ -1825,6 +1828,94 @@ export default function AdminDashboard() {
     return tasks.slice(0, 6);
   }, [pendingReschedules, requests, siteVisitsList]);
 
+  // Today's Date in Application Timezone (Asia/Kolkata - IST)
+  const todayDateStr = useMemo(() => {
+    try {
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date());
+    } catch (_) {
+      return new Date().toISOString().slice(0, 10);
+    }
+  }, []);
+
+  const formatVisitTimeDisplay = (timeStr?: string) => {
+    if (!timeStr) return "Time Pending";
+    const clean = timeStr.trim();
+    if (clean.includes("AM") || clean.includes("PM") || clean.includes("am") || clean.includes("pm")) {
+      return clean;
+    }
+    const parts = clean.split(":");
+    if (parts.length >= 2) {
+      let hours = parseInt(parts[0], 10);
+      const minutes = parts[1];
+      const ampm = hours >= 12 ? "PM" : "AM";
+      hours = hours % 12 || 12;
+      return `${hours.toString().padStart(2, "0")}:${minutes} ${ampm}`;
+    }
+    return clean;
+  };
+
+  // Helper to resolve comprehensive customer details for any visit
+  const resolveVisitDetails = (v: any) => {
+    const req = requests.find((r) => r.id === v.request_id);
+    const profile = customerProfiles.find(
+      (p) => (req && p.id === req.customer_user_id) || (v.notes && v.notes.includes(p.full_name))
+    );
+    const fullName =
+      req?.full_name ||
+      profile?.full_name ||
+      v.notes?.match(/\[Customer: ([^()]+)/)?.[1]?.trim() ||
+      `Customer #${v.request_id || v.id}`;
+    const rawMobile =
+      req?.mobile ||
+      profile?.mobile ||
+      v.notes?.match(/\(([^)]+)\)\]/)?.[1]?.trim() ||
+      "";
+    const cleanMobile = rawMobile ? rawMobile.replace(/\D/g, "").slice(-10) : "";
+    const location = req
+      ? `${req.village_city ? req.village_city + ", " : ""}${req.district || "Pratapgarh"}`
+      : profile
+      ? `${profile.village_city ? profile.village_city + ", " : ""}${profile.district || "Pratapgarh"}`
+      : "Pratapgarh";
+
+    return {
+      ...v,
+      resolvedName: fullName,
+      resolvedMobile: cleanMobile,
+      resolvedLocation: location,
+      resolvedReq: req,
+      resolvedProfile: profile,
+    };
+  };
+
+  // Live Today's Site Visits from Supabase
+  const todaysVisits = useMemo(() => {
+    return siteVisitsList
+      .filter((v) => {
+        if (!v.visit_date) return false;
+        const vDate = String(v.visit_date).trim().slice(0, 10);
+        return vDate === todayDateStr;
+      })
+      .map(resolveVisitDetails)
+      .sort((a, b) => (a.visit_time || "").localeCompare(b.visit_time || ""));
+  }, [siteVisitsList, requests, customerProfiles, todayDateStr]);
+
+  // Live Upcoming Visits from Supabase (After Today)
+  const upcomingVisits = useMemo(() => {
+    return siteVisitsList
+      .filter((v) => {
+        if (!v.visit_date) return false;
+        const vDate = String(v.visit_date).trim().slice(0, 10);
+        return vDate > todayDateStr && v.status !== "Cancelled" && v.status !== "Completed";
+      })
+      .map(resolveVisitDetails)
+      .sort((a, b) => (a.visit_date || "").localeCompare(b.visit_date || "") || (a.visit_time || "").localeCompare(b.visit_time || ""));
+  }, [siteVisitsList, requests, customerProfiles, todayDateStr]);
+
   return (
     <div className="min-h-screen w-full bg-[#f3efe6] text-[#17221b]">
       {/* =========================================================
@@ -1853,24 +1944,36 @@ export default function AdminDashboard() {
         `}
       >
         {/* LOGO (PINNED TOP) */}
-        <div className="flex h-[72px] shrink-0 items-center px-6 border-b border-white/10">
-          <Link
-            href="/"
-            aria-label="Sarda Homeplan Home"
-            className="flex items-center gap-3.5 group transition"
+        <div className="flex h-[74px] shrink-0 items-center px-5 border-b border-white/10">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab("overview");
+              setSidebarOpen(false);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            aria-label="Sarda Homeplan Admin Overview"
+            className="flex items-center gap-3 group transition text-left w-full cursor-pointer"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#d7b56d] text-[#17382c] shadow-sm group-hover:scale-105 transition">
-              <House size={22} strokeWidth={2} />
+            <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full shadow-md transition group-hover:scale-105 border border-[#f4cf72]/40 bg-white/5">
+              <Image
+                src="/sarda-logo.png"
+                alt="Sarda Homeplan"
+                width={88}
+                height={88}
+                priority
+                className="h-full w-full object-contain"
+              />
             </div>
             <div>
-              <p className="font-serif text-[20px] font-bold tracking-wide text-white group-hover:text-[#d7b56d] transition leading-tight">
+              <p className="font-serif text-[19px] font-bold tracking-wide text-white group-hover:text-[#f4cf72] transition leading-tight">
                 SARDA
               </p>
-              <p className="text-[9px] font-semibold tracking-[0.25em] text-[#d7b56d]">
+              <p className="text-[8.5px] font-extrabold tracking-[0.25em] text-[#f4cf72]">
                 HOMEPLAN ADMIN
               </p>
             </div>
-          </Link>
+          </button>
         </div>
 
         {/* NAVIGATION LINKS (COMPACT, FITS PERFECTLY WITHOUT CUTTING OFF) */}
@@ -1988,6 +2091,28 @@ export default function AdminDashboard() {
             className="rounded-xl p-2 text-[#17221b] hover:bg-black/5 lg:hidden"
           >
             <Menu size={22} />
+          </button>
+
+          {/* MOBILE LOGO BUTTON */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab("overview");
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            className="flex items-center gap-1.5 lg:hidden cursor-pointer"
+            aria-label="Admin Dashboard Overview"
+          >
+            <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full shadow-sm border border-[#d7b56d]/50 bg-white/5">
+              <Image
+                src="/sarda-logo.png"
+                alt="Sarda Homeplan"
+                width={72}
+                height={72}
+                priority
+                className="h-full w-full object-contain"
+              />
+            </div>
           </button>
 
           {/* LIVE SEARCH BAR */}
@@ -2659,100 +2784,323 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* BOTTOM DUAL COLUMNS: TODAY'S TASKS & APPROVED PORTFOLIO SHOWCASE */}
+                {/* BOTTOM DUAL COLUMNS: LIVE TODAY'S VISIT SCHEDULE & UPCOMING QUEUE */}
                 <div className="grid gap-6 lg:grid-cols-2">
-                  {/* TODAY'S TASKS */}
-                  <div className="rounded-2xl border border-[#ded9cf] bg-white p-5 shadow-sm">
-                    <div className="flex items-center justify-between border-b border-[#f0ebdf] pb-3 mb-3">
-                      <div className="flex items-center gap-2">
-                        <ListChecks className="text-[#8c6710]" size={18} />
-                        <h4 className="font-serif text-base font-bold text-[#17221b]">
-                          Today's Execution Checklist
-                        </h4>
-                      </div>
-                      <span className="text-[11px] font-bold text-black/50">
-                        {Object.values(completedTasks).filter(Boolean).length} / {dynamicTasks.length} Completed
-                      </span>
-                    </div>
+                  {/* CARD 1: TODAY'S VISIT SCHEDULE */}
+                  <div className="rounded-2xl border border-[#ded9cf] bg-white p-5 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center justify-between border-b border-[#f0ebdf] pb-3 mb-3 gap-2">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#063b2c] text-[#f4cf72] shrink-0">
+                            <CalendarClock size={20} />
+                          </div>
+                          <div>
+                            <h4 className="font-serif text-base font-bold text-[#17221b]">
+                              Today&apos;s Visit Schedule
+                            </h4>
+                            <p className="text-[11px] text-black/50 font-medium">
+                              {new Date().toLocaleDateString("en-IN", {
+                                weekday: "short",
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              })} (Live from Supabase)
+                            </p>
+                          </div>
+                        </div>
 
-                    <div className="space-y-2.5">
-                      {dynamicTasks.length === 0 ? (
-                        <div className="p-4 rounded-xl border border-dashed border-[#ded9cf] bg-[#faf8f4] text-center text-xs text-black/50">
-                          ✨ All current client requests, visits, and drafting tasks are up to date!
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-full bg-[#f4ead0] px-2.5 py-0.5 text-[11px] font-bold text-[#8c6710]">
+                            {todaysVisits.length} {todaysVisits.length === 1 ? "Visit" : "Visits"} Today
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab("visits")}
+                            className="text-xs font-bold text-[#0c7a62] hover:underline"
+                          >
+                            All Visits →
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Content Area */}
+                      {loadingReschedules ? (
+                        <div className="p-8 text-center text-xs text-black/50 space-y-2">
+                          <RefreshCw size={22} className="mx-auto animate-spin text-[#063b2c]" />
+                          <p>Loading today&apos;s scheduled site visits...</p>
+                        </div>
+                      ) : todaysVisits.length === 0 ? (
+                        <div className="p-8 text-center rounded-xl border border-dashed border-[#ded9cf] bg-[#faf8f4] space-y-2.5">
+                          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-[#eef5ee] text-[#063b2c]">
+                            <CalendarDays size={20} />
+                          </div>
+                          <p className="text-xs font-semibold text-black/70">
+                            No site visits scheduled for today.
+                          </p>
+                          <p className="text-[11px] text-black/45 max-w-xs mx-auto">
+                            Propose or schedule an on-site plot survey with registered clients.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleOpenCustomerSelector(
+                                "schedule_visit",
+                                "Select Customer for Site Visit",
+                                "Choose a registered customer to propose an on-site plot visit."
+                              )
+                            }
+                            className="mt-1 inline-flex items-center gap-1.5 rounded-xl bg-[#063b2c] px-3.5 py-1.5 text-xs font-bold text-[#f4cf72] hover:bg-[#0a4d38] transition shadow-xs"
+                          >
+                            <Plus size={14} />
+                            <span>Schedule a Visit</span>
+                          </button>
                         </div>
                       ) : (
-                        dynamicTasks.map((task) => (
-                          <div
-                            key={task.id}
-                            onClick={() => {
-                              setCompletedTasks((prev) => ({ ...prev, [task.id]: !prev[task.id] }));
-                              if (task.linkTab) setActiveTab(task.linkTab);
-                              if (task.req) openCustomerRequest(task.req);
-                            }}
-                            className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
-                              completedTasks[task.id]
-                                ? "bg-[#f5f9f6] border-[#cfe2d4] line-through text-black/40"
-                                : "bg-[#faf8f4] border-[#eee7db] text-[#17221b] hover:bg-white hover:border-[#0c7a62]"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <input
-                                type="checkbox"
-                                checked={!!completedTasks[task.id]}
-                                onChange={() => {}}
-                                className="h-4 w-4 rounded text-[#063b2c] accent-[#063b2c]"
-                              />
-                              <span className="text-xs font-medium">{task.text}</span>
+                        <div className="space-y-2.5">
+                          {todaysVisits.map((visit) => (
+                            <div
+                              key={visit.id}
+                              onClick={() => setDashboardVisitDetail(visit)}
+                              className="group flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl border border-[#ede7dc] bg-[#faf8f4] hover:bg-white hover:border-[#0c7a62] hover:shadow-xs transition cursor-pointer gap-3"
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className="flex flex-col items-center justify-center rounded-lg bg-[#063b2c] px-2.5 py-1.5 text-white shrink-0 min-w-[70px]">
+                                  <Clock3 size={13} className="text-[#f4cf72] mb-0.5" />
+                                  <span className="text-[11px] font-extrabold text-[#f4cf72] leading-tight">
+                                    {formatVisitTimeDisplay(visit.visit_time)}
+                                  </span>
+                                </div>
+
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <h5 className="font-bold text-sm text-[#17221b] group-hover:text-[#063b2c] transition">
+                                      {visit.resolvedName}
+                                    </h5>
+                                    <span
+                                      className={`rounded-full px-2 py-0.2 text-[9.5px] font-bold ${
+                                        visit.status === "Confirmed"
+                                          ? "bg-[#eaf5ed] text-[#0c7a62]"
+                                          : visit.status === "Reschedule Requested" || visit.status === "Rescheduled"
+                                          ? "bg-[#fae8b2] text-[#8c6710]"
+                                          : "bg-[#eef3f5] text-[#3d515a]"
+                                      }`}
+                                    >
+                                      {visit.status || "Proposed"}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-1.5 text-xs text-black/60 mt-0.5">
+                                    <MapPin size={12} className="text-[#8c6710] shrink-0" />
+                                    <span>{visit.resolvedLocation}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
+                                {visit.resolvedMobile && (
+                                  <>
+                                    <a
+                                      href={`tel:${visit.resolvedMobile}`}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="rounded-lg p-2 text-black/60 hover:bg-black/5 hover:text-[#063b2c] transition"
+                                      title="Call Customer"
+                                    >
+                                      <Phone size={14} />
+                                    </a>
+                                    <a
+                                      href={`https://wa.me/91${visit.resolvedMobile}?text=${encodeURIComponent(
+                                        `Namaste ${visit.resolvedName} ji, Sarda Homeplan se aaj aapka Site Visit (${formatVisitTimeDisplay(visit.visit_time)}) scheduled hai.`
+                                      )}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="rounded-lg p-2 text-[#0c7a62] hover:bg-[#eef8f4] transition"
+                                      title="Chat on WhatsApp"
+                                    >
+                                      <MessageCircle size={14} />
+                                    </a>
+                                  </>
+                                )}
+                                <span className="text-[11px] font-bold text-[#0c7a62] ml-1 group-hover:translate-x-0.5 transition">
+                                  Details →
+                                </span>
+                              </div>
                             </div>
-                            <span className="text-[10px] font-semibold text-black/50 ml-2 shrink-0">
-                              {task.time}
-                            </span>
-                          </div>
-                        ))
+                          ))}
+                        </div>
                       )}
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-[#f2ede4] flex items-center justify-between text-xs text-black/50">
+                      <span>Live Supabase: <code className="font-mono text-[10px] bg-black/5 px-1 py-0.5 rounded">public.site_visits</code></span>
+                      <button
+                        type="button"
+                        onClick={() => fetchPendingReschedules()}
+                        className="font-bold text-[#063b2c] hover:underline flex items-center gap-1"
+                      >
+                        <RefreshCw size={12} /> Sync Now
+                      </button>
                     </div>
                   </div>
 
-                  {/* RECENT PLANS OVERVIEW */}
-                  <div className="rounded-2xl border border-[#ded9cf] bg-white p-5 shadow-sm">
-                    <div className="flex items-center justify-between border-b border-[#f0ebdf] pb-3 mb-3">
-                      <div className="flex items-center gap-2">
-                        <FileImage className="text-[#0c7a62]" size={18} />
-                        <h4 className="font-serif text-base font-bold text-[#17221b]">
-                          Approved Architectural Plans
-                        </h4>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab("plans")}
-                        className="text-xs font-bold text-[#0c7a62] hover:underline"
-                      >
-                        All Plans →
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      {PORTFOLIO_ITEMS.slice(0, 4).map((item) => (
-                        <div
-                          key={item.id}
-                          onClick={() => setActivePlanPreview(item)}
-                          className="group relative cursor-pointer overflow-hidden rounded-xl border border-[#e4ded4] bg-[#faf8f4] hover:shadow-md transition"
-                        >
-                          <div className="aspect-[4/3] w-full overflow-hidden bg-neutral-200">
-                            <img
-                              src={item.image}
-                              alt={item.title}
-                              className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                            />
+                  {/* CARD 2: UPCOMING VISITS & ACTIONABLE RESCHEDULES */}
+                  <div className="rounded-2xl border border-[#ded9cf] bg-white p-5 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center justify-between border-b border-[#f0ebdf] pb-3 mb-3 gap-2">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#d9b45a]/20 text-[#8c6710] shrink-0">
+                            <CalendarDays size={20} />
                           </div>
-                          <div className="p-2.5">
-                            <p className="truncate text-xs font-bold text-[#17221b]">
-                              {item.title}
+                          <div>
+                            <h4 className="font-serif text-base font-bold text-[#17221b]">
+                              Upcoming Visits &amp; Reschedule Queue
+                            </h4>
+                            <p className="text-[11px] text-black/50 font-medium">
+                              Next scheduled appointments &amp; client date changes
                             </p>
-                            <p className="text-[10px] text-black/55">{item.plot}</p>
                           </div>
                         </div>
-                      ))}
+
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-full bg-[#f4ead0] px-2.5 py-0.5 text-[11px] font-bold text-[#8c6710]">
+                            {upcomingVisits.length} Upcoming
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab("visits")}
+                            className="text-xs font-bold text-[#0c7a62] hover:underline"
+                          >
+                            Manage in Visits →
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Reschedule alert banner if pending reschedules exist */}
+                      {pendingReschedules.length > 0 && (
+                        <div
+                          onClick={() => setActiveTab("visits")}
+                          className="mb-3 p-3 rounded-xl border border-[#d5a842] bg-[#fffdf5] flex items-center justify-between cursor-pointer hover:bg-[#fff9e6] transition"
+                        >
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle size={16} className="text-[#8c6710] shrink-0" />
+                            <span className="text-xs font-bold text-[#8c6710]">
+                              {pendingReschedules.length} Reschedule Request{pendingReschedules.length > 1 ? "s" : ""} Awaiting Response
+                            </span>
+                          </div>
+                          <span className="text-[11px] font-bold text-[#8c6710] underline">
+                            Respond →
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Content Area */}
+                      {loadingReschedules ? (
+                        <div className="p-8 text-center text-xs text-black/50 space-y-2">
+                          <RefreshCw size={22} className="mx-auto animate-spin text-[#063b2c]" />
+                          <p>Loading upcoming schedule...</p>
+                        </div>
+                      ) : upcomingVisits.length === 0 ? (
+                        <div className="p-8 text-center rounded-xl border border-dashed border-[#ded9cf] bg-[#faf8f4] space-y-2">
+                          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-[#f6f0df] text-[#866c37]">
+                            <Clock3 size={20} />
+                          </div>
+                          <p className="text-xs font-semibold text-black/70">
+                            No upcoming site visits scheduled in the queue.
+                          </p>
+                          <p className="text-[11px] text-black/45 max-w-xs mx-auto">
+                            Future on-site appointments will automatically show here in chronological order.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2.5">
+                          {upcomingVisits.slice(0, 4).map((visit) => (
+                            <div
+                              key={visit.id}
+                              onClick={() => setDashboardVisitDetail(visit)}
+                              className="group flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl border border-[#ede7dc] bg-[#faf8f4] hover:bg-white hover:border-[#0c7a62] hover:shadow-xs transition cursor-pointer gap-3"
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className="flex flex-col items-center justify-center rounded-lg bg-[#f0ebd9] px-2.5 py-1.5 text-[#17382c] shrink-0 min-w-[70px]">
+                                  <span className="text-[10px] font-extrabold uppercase text-[#8c6710]">
+                                    {visit.visit_date
+                                      ? new Date(visit.visit_date).toLocaleDateString("en-IN", {
+                                          day: "numeric",
+                                          month: "short",
+                                        })
+                                      : "Date TBD"}
+                                  </span>
+                                  <span className="text-[10px] font-bold text-black/75">
+                                    {formatVisitTimeDisplay(visit.visit_time)}
+                                  </span>
+                                </div>
+
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <h5 className="font-bold text-sm text-[#17221b] group-hover:text-[#063b2c] transition">
+                                      {visit.resolvedName}
+                                    </h5>
+                                    <span
+                                      className={`rounded-full px-2 py-0.2 text-[9.5px] font-bold ${
+                                        visit.status === "Confirmed"
+                                          ? "bg-[#eaf5ed] text-[#0c7a62]"
+                                          : "bg-[#eef3f5] text-[#3d515a]"
+                                      }`}
+                                    >
+                                      {visit.status || "Proposed"}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-1.5 text-xs text-black/60 mt-0.5">
+                                    <MapPin size={12} className="text-[#8c6710] shrink-0" />
+                                    <span>{visit.resolvedLocation}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
+                                {visit.resolvedMobile && (
+                                  <>
+                                    <a
+                                      href={`tel:${visit.resolvedMobile}`}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="rounded-lg p-2 text-black/60 hover:bg-black/5 hover:text-[#063b2c] transition"
+                                      title="Call Customer"
+                                    >
+                                      <Phone size={14} />
+                                    </a>
+                                    <a
+                                      href={`https://wa.me/91${visit.resolvedMobile}?text=${encodeURIComponent(
+                                        `Namaste ${visit.resolvedName} ji, Sarda Homeplan se aapka Site Visit ${visit.visit_date} (${formatVisitTimeDisplay(visit.visit_time)}) ke liye scheduled hai.`
+                                      )}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="rounded-lg p-2 text-[#0c7a62] hover:bg-[#eef8f4] transition"
+                                      title="Chat on WhatsApp"
+                                    >
+                                      <MessageCircle size={14} />
+                                    </a>
+                                  </>
+                                )}
+                                <span className="text-[11px] font-bold text-[#0c7a62] ml-1 group-hover:translate-x-0.5 transition">
+                                  Details →
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-[#f2ede4] flex items-center justify-between text-xs text-black/50">
+                      <span>Total Upcoming: <strong>{upcomingVisits.length}</strong> appointments</span>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("visits")}
+                        className="font-bold text-[#0c7a62] hover:underline"
+                      >
+                        Open Visits Calendar →
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -5293,6 +5641,213 @@ export default function AdminDashboard() {
                 className="rounded-xl bg-[#063b2c] px-5 py-2 text-xs font-bold text-[#f4cf72] hover:bg-[#0a4d38] transition"
               >
                 Close History
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dashboard Visit Quick Detail Modal */}
+      {dashboardVisitDetail && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+          onClick={() => setDashboardVisitDetail(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-[#ded9cf] bg-white shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-[#ede7dc] bg-[#063b2c] px-6 py-4 text-white">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f4cf72]/20 text-[#f4cf72]">
+                  <CalendarDays size={20} />
+                </div>
+                <div>
+                  <h3 className="font-serif text-base font-bold text-white">
+                    Site Visit Appointment
+                  </h3>
+                  <p className="text-xs text-[#f4cf72]/80">
+                    Visit #{dashboardVisitDetail.id} · Scheduled On-Site Inspection
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDashboardVisitDetail(null)}
+                className="rounded-lg p-1.5 text-white/70 hover:bg-white/10 hover:text-white transition"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+              {/* Customer Info Card */}
+              <div className="rounded-xl border border-[#ede7dc] bg-[#faf8f4] p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-black/45">
+                      Client / Property Owner
+                    </span>
+                    <h4 className="font-bold text-base text-[#17221b]">
+                      {dashboardVisitDetail.resolvedName}
+                    </h4>
+                    <div className="flex items-center gap-1.5 text-xs text-black/60 mt-0.5">
+                      <MapPin size={13} className="text-[#0c7a62] shrink-0" />
+                      <span>{dashboardVisitDetail.resolvedLocation}</span>
+                    </div>
+                  </div>
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                      dashboardVisitDetail.status === "Confirmed"
+                        ? "bg-[#eaf5ea] text-[#1c7430]"
+                        : dashboardVisitDetail.status === "Completed"
+                        ? "bg-[#e2f0d9] text-[#2e6b27]"
+                        : dashboardVisitDetail.status === "Cancelled"
+                        ? "bg-[#fde8e8] text-[#c81e1e]"
+                        : "bg-[#fff8e1] text-[#b45309]"
+                    }`}
+                  >
+                    {dashboardVisitDetail.status || "Scheduled"}
+                  </span>
+                </div>
+
+                {dashboardVisitDetail.resolvedMobile && (
+                  <div className="pt-2 border-t border-[#ede7dc] flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-black/70">
+                      📱 +91 {dashboardVisitDetail.resolvedMobile}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={`tel:+91${dashboardVisitDetail.resolvedMobile}`}
+                        className="inline-flex items-center gap-1 rounded-lg bg-[#063b2c] px-2.5 py-1 text-xs font-bold text-[#f4cf72] hover:bg-[#0a4d38] transition"
+                      >
+                        <Phone size={12} /> Call
+                      </a>
+                      <a
+                        href={`https://wa.me/91${dashboardVisitDetail.resolvedMobile}?text=${encodeURIComponent(
+                          `Hello ${dashboardVisitDetail.resolvedName}, regarding your Sarda Homeplan site visit scheduled on ${dashboardVisitDetail.visit_date}...`
+                        )}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 rounded-lg bg-[#25D366] px-2.5 py-1 text-xs font-bold text-white hover:bg-[#20ba59] transition"
+                      >
+                        <MessageCircle size={12} /> WhatsApp
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Schedule Details */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-[#ded9cf] bg-white p-3.5 space-y-1">
+                  <span className="text-[10px] font-bold uppercase text-black/45 flex items-center gap-1">
+                    <CalendarDays size={12} className="text-[#0c7a62]" /> Visit Date
+                  </span>
+                  <p className="font-bold text-sm text-[#17221b]">
+                    {dashboardVisitDetail.visit_date
+                      ? new Date(dashboardVisitDetail.visit_date).toLocaleDateString("en-IN", {
+                          weekday: "short",
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })
+                      : "Date Not Set"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-[#ded9cf] bg-white p-3.5 space-y-1">
+                  <span className="text-[10px] font-bold uppercase text-black/45 flex items-center gap-1">
+                    <Clock3 size={12} className="text-[#0c7a62]" /> Visit Time
+                  </span>
+                  <p className="font-bold text-sm text-[#17221b]">
+                    {formatVisitTimeDisplay(dashboardVisitDetail.visit_time)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Plot / Request Specs if available */}
+              {dashboardVisitDetail.resolvedReq && (
+                <div className="rounded-xl border border-[#ded9cf] bg-white p-3.5 space-y-2 text-xs">
+                  <span className="text-[10px] font-bold uppercase text-black/45 tracking-wider">
+                    Property / Project Specifications
+                  </span>
+                  <div className="grid grid-cols-2 gap-2 text-black/75">
+                    {dashboardVisitDetail.resolvedReq.plot_width && dashboardVisitDetail.resolvedReq.plot_length && (
+                      <div>
+                        <span className="text-black/50">Plot Size: </span>
+                        <span className="font-bold">
+                          {dashboardVisitDetail.resolvedReq.plot_width} × {dashboardVisitDetail.resolvedReq.plot_length} ft
+                        </span>
+                      </div>
+                    )}
+                    {dashboardVisitDetail.resolvedReq.floors_required && (
+                      <div>
+                        <span className="text-black/50">Floors: </span>
+                        <span className="font-bold">{dashboardVisitDetail.resolvedReq.floors_required}</span>
+                      </div>
+                    )}
+                    {dashboardVisitDetail.resolvedReq.facing && (
+                      <div>
+                        <span className="text-black/50">Facing: </span>
+                        <span className="font-bold">{dashboardVisitDetail.resolvedReq.facing}</span>
+                      </div>
+                    )}
+                    {dashboardVisitDetail.resolvedReq.preferred_style && (
+                      <div>
+                        <span className="text-black/50">Style: </span>
+                        <span className="font-bold">{dashboardVisitDetail.resolvedReq.preferred_style}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              {dashboardVisitDetail.notes && (
+                <div className="rounded-xl border border-[#ded9cf] bg-white p-3.5 space-y-1 text-xs">
+                  <span className="text-[10px] font-bold uppercase text-black/45">Admin / Visit Notes</span>
+                  <p className="text-black/75 italic">{dashboardVisitDetail.notes}</p>
+                </div>
+              )}
+
+              {/* Customer Response Notes */}
+              {dashboardVisitDetail.customer_response_notes && (
+                <div className="rounded-xl border border-[#eedab2] bg-[#fffbf2] p-3.5 space-y-1 text-xs">
+                  <span className="text-[10px] font-bold uppercase text-[#8c6710] flex items-center gap-1">
+                    <AlertTriangle size={12} /> Customer Note / Reschedule Request
+                  </span>
+                  <p className="text-[#8c6710] font-medium">
+                    &ldquo;{dashboardVisitDetail.customer_response_notes}&rdquo;
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-between border-t border-[#ede7dc] bg-[#faf8f4] px-6 py-3.5">
+              <button
+                type="button"
+                onClick={() => setDashboardVisitDetail(null)}
+                className="rounded-xl border border-[#ded9cf] bg-white px-4 py-2 text-xs font-bold text-black/70 hover:bg-[#f2ede4] transition"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedVisit(dashboardVisitDetail);
+                  setActiveTab("visits");
+                  setDashboardVisitDetail(null);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#063b2c] px-4 py-2 text-xs font-bold text-[#f4cf72] hover:bg-[#0a4d38] transition shadow-xs"
+              >
+                <span>Open in Site Visits Tab</span>
+                <ChevronRight size={14} />
               </button>
             </div>
           </div>

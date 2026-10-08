@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowLeft,
   ArrowRight,
@@ -110,19 +111,30 @@ export default function AdminForgotPasswordPage() {
     <main className="min-h-screen bg-[#f3efe6] p-4 sm:p-6 lg:p-8 flex flex-col justify-between text-[#17221b]">
       {/* HEADER */}
       <header className="mx-auto w-full max-w-lg flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#173525] text-white font-serif font-bold text-lg">
-            S
+        <Link
+          href="/"
+          className="flex items-center gap-3 group transition"
+          aria-label="Back to Homepage"
+        >
+          <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full shadow-sm transition group-hover:scale-105 border border-[#d9b45a]/30">
+            <Image
+              src="/sarda-logo.png"
+              alt="Sarda Homeplan"
+              width={88}
+              height={88}
+              priority
+              className="h-full w-full object-contain"
+            />
           </div>
           <div>
-            <div className="text-xs font-semibold tracking-widest text-[#173525]">
+            <div className="font-serif text-base font-bold tracking-wider text-[#173525] group-hover:text-[#063b2c] transition leading-tight">
               SARDA ADMIN
             </div>
-            <div className="text-[9px] tracking-wider text-[#68766c]">
+            <div className="text-[8.5px] font-extrabold tracking-wider text-[#9b7732]">
               SECURITY WORKSPACE
             </div>
           </div>
-        </div>
+        </Link>
 
         <Link
           href="/admin/login"

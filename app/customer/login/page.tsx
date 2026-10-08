@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowRight,
   Eye,
@@ -550,49 +551,28 @@ export default function CustomerLoginPage() {
             <div className="mb-3 flex items-start justify-between">
 
               {/* BRAND */}
-              <div className="flex items-center gap-2.5">
-
-                <div className="flex h-11 w-11 items-center justify-center">
-                  <svg
-                    width="48"
-                    height="48"
-                    viewBox="0 0 58 58"
-                    fill="none"
-                  >
-                    <path
-                      d="M8 27L29 9L50 27"
-                      stroke="#9b7732"
-                      strokeWidth="2"
-                    />
-                    <path
-                      d="M14 25V47H44V25"
-                      stroke="#063b2c"
-                      strokeWidth="2"
-                    />
-                    <path
-                      d="M29 22V47"
-                      stroke="#063b2c"
-                      strokeWidth="2"
-                    />
-                    <path
-                      d="M29 30C23 27 20 31 22 35C24 38 28 37 29 33"
-                      stroke="#9b7732"
-                      strokeWidth="2"
-                    />
-                    <path
-                      d="M29 30C35 27 38 31 36 35C34 38 30 37 29 33"
-                      stroke="#9b7732"
-                      strokeWidth="2"
-                    />
-                  </svg>
+              <Link
+                href="/"
+                className="flex items-center gap-3 group transition"
+                aria-label="Back to Homepage"
+              >
+                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full shadow-sm transition group-hover:scale-105 border border-[#d9b45a]/30">
+                  <Image
+                    src="/sarda-logo.png"
+                    alt="Sarda Homeplan"
+                    width={96}
+                    height={96}
+                    priority
+                    className="h-full w-full object-contain"
+                  />
                 </div>
 
                 <div>
-                  <h1 className="font-serif text-[24px] font-semibold tracking-[0.08em] leading-none text-[#063b2c] sm:text-[27px]">
+                  <h1 className="font-serif text-[24px] font-semibold tracking-[0.08em] leading-none text-[#063b2c] sm:text-[27px] group-hover:text-[#0b5c46] transition">
                     SARDA
                   </h1>
 
-                  <p className="mt-0.5 text-[9px] tracking-[0.32em] text-[#063b2c]">
+                  <p className="mt-0.5 text-[9px] font-extrabold tracking-[0.32em] text-[#9b7732]">
                     HOMEPLAN
                   </p>
 
@@ -600,8 +580,7 @@ export default function CustomerLoginPage() {
                     Ghar Ka Naksha, Aapke Sapno Ke Saath
                   </p>
                 </div>
-
-              </div>
+              </Link>
 
               {/* LANGUAGE */}
               <button

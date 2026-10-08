@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowLeft,
   ArrowRight,
@@ -498,27 +500,33 @@ export default function CustomerRequestPage() {
       <aside className="fixed left-0 top-0 z-50 hidden h-screen w-[253px] flex-col overflow-hidden bg-[#063b2c] text-white lg:flex">
 
         {/* BRAND */}
-
         <div className="px-5 pb-5 pt-6">
-
-          <div className="flex items-center gap-3">
-
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#f4ca64] text-[#063b2c]">
-              <Home size={27} />
+          <Link
+            href="/customer/dashboard"
+            className="flex items-center gap-3 group transition"
+            aria-label="Back to Customer Dashboard"
+          >
+            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full shadow-md transition group-hover:scale-105 border border-[#f4ca64]/40 bg-white/5">
+              <Image
+                src="/sarda-logo.png"
+                alt="Sarda Homeplan"
+                width={96}
+                height={96}
+                priority
+                className="h-full w-full object-contain"
+              />
             </div>
 
             <div>
-              <p className="font-serif text-[25px] font-bold tracking-wide">
+              <p className="font-serif text-[22px] font-bold tracking-wide text-white group-hover:text-[#f4ca64] transition leading-none">
                 SARDA
               </p>
 
-              <p className="-mt-1 text-[11px] font-semibold tracking-[0.25em] text-[#f4ca64]">
+              <p className="mt-1 text-[9px] font-extrabold tracking-[0.25em] text-[#f4ca64]">
                 HOMEPLAN
               </p>
             </div>
-
-          </div>
-
+          </Link>
         </div>
 
         <p className="px-7 text-[11px] font-medium uppercase tracking-[0.2em] text-white/65">

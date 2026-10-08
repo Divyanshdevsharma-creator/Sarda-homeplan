@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowLeft,
   ArrowRight,
@@ -145,15 +146,26 @@ export default function CustomerForgotPasswordPage() {
     <main className="min-h-screen bg-[#f8f5ed] text-[#17221b] p-4 sm:p-6 lg:p-8 flex flex-col justify-between">
       {/* HEADER */}
       <header className="mx-auto w-full max-w-xl flex items-center justify-between">
-        <Link href="/customer/login" className="flex items-center gap-2.5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#063b2c] text-[#d9b45a] shadow-sm">
-            <Home size={20} />
+        <Link
+          href="/"
+          className="flex items-center gap-3 group transition"
+          aria-label="Back to Homepage"
+        >
+          <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full shadow-sm transition group-hover:scale-105 border border-[#d9b45a]/30">
+            <Image
+              src="/sarda-logo.png"
+              alt="Sarda Homeplan"
+              width={88}
+              height={88}
+              priority
+              className="h-full w-full object-contain"
+            />
           </div>
           <div>
-            <div className="font-serif text-xl font-bold tracking-wider text-[#063b2c]">
+            <div className="font-serif text-xl font-bold tracking-wider text-[#063b2c] group-hover:text-[#0b5c46] transition">
               SARDA
             </div>
-            <div className="text-[8px] font-bold tracking-[0.3em] text-[#9b7732]">
+            <div className="text-[8px] font-extrabold tracking-[0.3em] text-[#9b7732]">
               HOMEPLAN
             </div>
           </div>

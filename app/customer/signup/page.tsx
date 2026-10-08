@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowLeft,
   Eye,
@@ -191,21 +193,32 @@ export default function CustomerSignupPage() {
       {/* ================= HEADER ================= */}
       <header className="flex h-[72px] items-center justify-between px-5 sm:px-7 lg:px-8">
         {/* LOGO */}
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#123f31] text-[#d9b45a] shadow-sm">
-            <Home size={23} strokeWidth={2.2} />
+        <Link
+          href="/"
+          className="flex items-center gap-3 group transition"
+          aria-label="Back to Homepage"
+        >
+          <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full shadow-sm transition group-hover:scale-105 border border-[#d9b45a]/30">
+            <Image
+              src="/sarda-logo.png"
+              alt="Sarda Homeplan"
+              width={88}
+              height={88}
+              priority
+              className="h-full w-full object-contain"
+            />
           </div>
 
           <div className="leading-none">
-            <div className="font-serif text-[24px] font-bold tracking-wide text-[#123f31]">
+            <div className="font-serif text-[22px] font-bold tracking-wide text-[#123f31] group-hover:text-[#0b5c46] transition">
               SARDA
             </div>
 
-            <div className="mt-1 text-[8px] font-bold tracking-[0.35em] text-[#a97920]">
+            <div className="mt-1 text-[8px] font-extrabold tracking-[0.35em] text-[#a97920]">
               HOMEPLAN
             </div>
           </div>
-        </div>
+        </Link>
 
         {/* BACK BUTTON */}
         <button

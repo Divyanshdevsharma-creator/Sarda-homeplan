@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
 import { createClient } from "../../../lib/supabase-client";
 
 
@@ -256,25 +258,32 @@ export default function AdminLoginPage() {
 
             <div className="flex items-center justify-between">
 
-              <div className="flex items-center gap-3">
-
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#17221b] text-lg font-semibold text-white shadow-sm">
-                  S
+              <Link
+                href="/"
+                className="flex items-center gap-3 group transition"
+                aria-label="Back to Homepage"
+              >
+                <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full shadow-sm transition group-hover:scale-105 border border-[#d9b45a]/30">
+                  <Image
+                    src="/sarda-logo.png"
+                    alt="Sarda Homeplan"
+                    width={88}
+                    height={88}
+                    priority
+                    className="h-full w-full object-contain"
+                  />
                 </div>
 
                 <div>
-
-                  <p className="text-[14px] font-semibold tracking-[0.22em]">
+                  <p className="font-serif text-[17px] font-bold tracking-[0.15em] text-[#17221b] group-hover:text-[#063b2c] transition leading-tight">
                     SARDA
                   </p>
 
-                  <p className="text-[9px] tracking-[0.30em] text-[#68766c]">
-                    HOMEPLAN
+                  <p className="text-[8.5px] font-extrabold tracking-[0.25em] text-[#9b7732]">
+                    HOMEPLAN ADMIN
                   </p>
-
                 </div>
-
-              </div>
+              </Link>
 
 
               {/* ADMIN BADGE */}

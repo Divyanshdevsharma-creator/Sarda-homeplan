@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, type ComponentType } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Home,
   FileText,
@@ -1019,7 +1020,7 @@ export default function CustomerDashboardPage() {
       } else if (event === "SIGNED_OUT" && isMounted) {
         setIsAuthChecking(false);
         if (typeof window !== "undefined") {
-          window.location.href = "/customer/login";
+          window.location.href = "/";
         }
       }
     });
@@ -1652,20 +1653,36 @@ export default function CustomerDashboardPage() {
         {/* LOGO */}
         <div className="shrink-0 px-6 pt-6">
           <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-3">
-              <div className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-[16px] bg-[#f4cf72] text-[#063b2c]">
-                <Home size={28} strokeWidth={2.2} />
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab("dashboard");
+                setMobileMenuOpen(false);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              className="flex items-center gap-3 text-left group cursor-pointer"
+              aria-label="Customer Dashboard Overview"
+            >
+              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full shadow-md transition group-hover:scale-105 border border-[#f4cf72]/40 bg-white/5">
+                <Image
+                  src="/sarda-logo.png"
+                  alt="Sarda Homeplan"
+                  width={96}
+                  height={96}
+                  priority
+                  className="h-full w-full object-contain"
+                />
               </div>
 
               <div>
-                <div className="font-serif text-[25px] font-bold leading-none tracking-wide">
+                <div className="font-serif text-[22px] font-bold leading-none tracking-wide text-white group-hover:text-[#f4cf72] transition">
                   SARDA
                 </div>
-                <div className="mt-1 text-[9px] font-bold tracking-[0.28em] text-[#f4cf72]">
+                <div className="mt-1 text-[8.5px] font-extrabold tracking-[0.28em] text-[#f4cf72]">
                   HOMEPLAN
                 </div>
               </div>
-            </Link>
+            </button>
 
             <button
               type="button"
@@ -1836,6 +1853,28 @@ export default function CustomerDashboardPage() {
               aria-label="Open sidebar"
             >
               <Menu size={22} />
+            </button>
+
+            {/* Mobile Logo Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab("dashboard");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              className="flex items-center gap-1.5 lg:hidden cursor-pointer"
+              aria-label="Customer Dashboard Overview"
+            >
+              <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full shadow-sm border border-[#d9b45a]/30">
+                <Image
+                  src="/sarda-logo.png"
+                  alt="Sarda Homeplan"
+                  width={72}
+                  height={72}
+                  priority
+                  className="h-full w-full object-contain"
+                />
+              </div>
             </button>
 
             <div>

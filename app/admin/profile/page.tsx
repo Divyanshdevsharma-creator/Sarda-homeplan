@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -193,7 +194,7 @@ export default function AdminProfilePage() {
 
       document.cookie = "sarada_admin_logged_in=; path=/; max-age=0;";
       document.cookie = "sarda_admin_logged_in=; path=/; max-age=0;";
-      window.location.href = "/admin/login";
+      window.location.href = "/";
     }
   };
 
@@ -203,6 +204,23 @@ export default function AdminProfilePage() {
       <header className="sticky top-0 z-30 border-b border-[#ded8cd] bg-white/95 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-3">
+            <Link
+              href="/admin"
+              className="flex items-center gap-2 group mr-1"
+              aria-label="Back to Admin Dashboard"
+            >
+              <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full shadow-sm transition group-hover:scale-105 border border-[#d9b45a]/30">
+                <Image
+                  src="/sarda-logo.png"
+                  alt="Sarda Homeplan"
+                  width={72}
+                  height={72}
+                  priority
+                  className="h-full w-full object-contain"
+                />
+              </div>
+            </Link>
+
             <Link
               href="/admin"
               className="inline-flex items-center gap-1.5 rounded-xl border border-[#ded9cf] bg-[#f8f5ee] px-3.5 py-1.5 text-xs font-bold text-[#17221b] transition hover:bg-[#ede8dc]"

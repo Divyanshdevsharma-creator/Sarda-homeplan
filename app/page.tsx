@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Home as HomeIcon,
   Building2,
@@ -650,9 +651,26 @@ export default function Home() {
       <header className="sticky top-0 z-50 border-b border-[#e8e2d4] bg-[#f8f6f0]/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3.5 sm:px-8 lg:px-10">
           {/* BRAND LOGO */}
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#063b2c] text-[#d9b45a] shadow-sm transition group-hover:scale-105">
-              <HomeIcon size={22} strokeWidth={2.4} />
+          <Link
+            href="/"
+            onClick={(e) => {
+              if (window.location.pathname === "/") {
+                e.preventDefault();
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }
+            }}
+            className="flex items-center gap-2.5 group"
+            aria-label="Sarda Homeplan"
+          >
+            <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full shadow-sm transition group-hover:scale-105 border border-[#d9b45a]/30">
+              <Image
+                src="/sarda-logo.png"
+                alt="Sarda Homeplan"
+                width={88}
+                height={88}
+                priority
+                className="h-full w-full object-contain"
+              />
             </div>
             <div className="leading-tight">
               <span className="font-serif text-[20px] font-bold tracking-tight text-[#063b2c] sm:text-[22px]">
@@ -2282,9 +2300,25 @@ export default function Home() {
           <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
             {/* Col 1: Brand Info */}
             <div className="lg:col-span-2">
-              <Link href="/" className="flex items-center gap-2.5">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#063b2c] text-[#d9b45a] shadow-sm">
-                  <HomeIcon size={22} strokeWidth={2.4} />
+              <Link
+                href="/"
+                onClick={(e) => {
+                  if (window.location.pathname === "/") {
+                    e.preventDefault();
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }
+                }}
+                className="flex items-center gap-2.5 group"
+                aria-label="Sarda Homeplan"
+              >
+                <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full shadow-sm transition group-hover:scale-105 border border-[#d9b45a]/30">
+                  <Image
+                    src="/sarda-logo.png"
+                    alt="Sarda Homeplan"
+                    width={88}
+                    height={88}
+                    className="h-full w-full object-contain"
+                  />
                 </div>
                 <div>
                   <span className="font-serif text-[20px] font-bold tracking-tight text-[#063b2c]">
