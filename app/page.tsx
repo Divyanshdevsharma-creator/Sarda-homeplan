@@ -30,8 +30,18 @@ import {
   X,
   Layers,
   HeartHandshake,
+  GraduationCap,
+  Award,
+  Check,
+  Briefcase,
 } from "lucide-react";
 import { createClient } from "../lib/supabase-client";
+import {
+  BUSINESS_CONFIG,
+  getDineshWhatsAppUrl,
+  getDineshCallUrl,
+  getDineshEmailUrl,
+} from "../lib/business-config";
 
 // ============================================================================
 // LANGUAGES SUPPORT: Hindi, English, Hinglish
@@ -360,9 +370,9 @@ const FAQS = [
     qHi: "क्या मैं अपना हाथ से बना रफ स्केच भेज सकता हूँ?",
     qEn: "Can I share my hand-drawn rough paper sketch?",
     qHinglish: "Kya mai apna rough sketch bhej sakta hu?",
-    aHi: "हाँ! आप किसी भी कागज या डायरी पर हाथ से बना हुआ रफ स्केच सीधे पोर्टल पर अपलोड कर सकते हैं या व्हाट्सएप (+91 8423406049) पर भेज सकते हैं। हम उसे साफ 2D नक्शे में बदल देंगे।",
-    aEn: "Yes! You can take a photo of your paper sketch and upload it on our portal or send it on WhatsApp (+91 8423406049). We redraw it into clean 2D plans.",
-    aHinglish: "Haan! Aap kisi bhi kaghaz par bana rough sketch WhatsApp (+91 8423406049) par bhej sakte hain ya hamare portal par direct upload kar sakte hain.",
+    aHi: `हाँ! आप किसी भी कागज या डायरी पर हाथ से बना हुआ रफ स्केच सीधे पोर्टल पर अपलोड कर सकते हैं या व्हाट्सएप (${BUSINESS_CONFIG.publicPhoneFormatted}) पर भेज सकते हैं। हम उसे साफ 2D नक्शे में बदल देंगे।`,
+    aEn: `Yes! You can take a photo of your paper sketch and upload it on our portal or send it on WhatsApp (${BUSINESS_CONFIG.publicPhoneFormatted}). We redraw it into clean 2D plans.`,
+    aHinglish: `Haan! Aap kisi bhi kaghaz par bana rough sketch WhatsApp (${BUSINESS_CONFIG.publicPhoneFormatted}) par bhej sakte hain ya hamare portal par direct upload kar sakte hain.`,
   },
   {
     qHi: "क्या आप साइट विज़िट करते हैं?",
@@ -699,6 +709,9 @@ export default function Home() {
             <a href="#process" className="transition hover:text-[#063b2c]">
               {lang === "hi" ? "प्रक्रिया" : "How It Works"}
             </a>
+            <a href="#consultant" className="transition hover:text-[#063b2c] font-bold text-[#0c7a62]">
+              {lang === "hi" ? "परामर्शदाता" : "Meet Dinesh"}
+            </a>
             <a href="#contact" className="transition hover:text-[#063b2c]">
               {lang === "hi" ? "संपर्क" : "Contact"}
             </a>
@@ -875,6 +888,13 @@ export default function Home() {
                 className="py-1 hover:text-[#063b2c]"
               >
                 {lang === "hi" ? "प्रक्रिया" : "How It Works"}
+              </a>
+              <a
+                href="#consultant"
+                onClick={() => setMobileMenuOpen(false)}
+                className="py-1 hover:text-[#063b2c] font-bold text-[#0c7a62]"
+              >
+                {lang === "hi" ? "परामर्शदाता (दिनेश जी)" : "Meet Dinesh"}
               </a>
               <a
                 href="#contact"
@@ -1297,11 +1317,11 @@ export default function Home() {
                 </button>
 
                 <a
-                  href="tel:+918423406049"
+                  href={getDineshCallUrl()}
                   className="flex items-center gap-2 rounded-full border border-black/15 bg-white px-5 py-3 text-xs font-bold text-[#17221b] shadow-sm hover:border-[#063b2c]"
                 >
                   <Phone size={13} className="text-[#0c7a62]" />
-                  <span>+91 8423406049</span>
+                  <span>{BUSINESS_CONFIG.publicPhoneFormatted}</span>
                 </a>
               </div>
             </div>
@@ -2132,6 +2152,358 @@ export default function Home() {
       </section>
 
       {/* =====================================================================
+          9.5. MEET THE PERSON BEHIND SARDA HOMEPLAN (Dinesh Kumar Sharma)
+      ===================================================================== */}
+      <section
+        id="consultant"
+        className="py-20 sm:py-24 border-t border-[#e8e2d4] bg-[#faf8f4] relative overflow-hidden"
+      >
+        {/* Subtle Architectural Grid Pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.03] pointer-events-none"
+          style={{
+            backgroundImage:
+              "radial-gradient(#063b2c 1px, transparent 1px), radial-gradient(#063b2c 1px, #faf8f4 1px)",
+            backgroundSize: "24px 24px",
+          }}
+        />
+
+        <div className="relative mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
+          <div className="grid gap-12 lg:grid-cols-12 lg:items-start">
+            {/* LEFT 5 COLS: DINESH'S PROFESSIONAL PORTRAIT & DIRECT CONTACT */}
+            <div className="lg:col-span-5">
+              <div className="relative rounded-3xl border-2 border-white bg-gradient-to-b from-white to-[#f4f0e6] p-4 sm:p-5 shadow-2xl">
+                {/* Photo Container */}
+                <div className="relative aspect-[4/5] sm:aspect-[1/1] lg:aspect-[4/5] w-full overflow-hidden rounded-2xl bg-[#063b2c]/10 shadow-inner">
+                  <Image
+                    src={BUSINESS_CONFIG.photoUrl}
+                    alt={`${BUSINESS_CONFIG.name} - ${BUSINESS_CONFIG.role}`}
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 450px"
+                    priority
+                    className="h-full w-full object-cover object-top transition duration-500 hover:scale-[1.02]"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent pointer-events-none" />
+
+                  {/* Top Floating Badge */}
+                  <div className="absolute top-3.5 left-3.5 right-3.5 flex items-center justify-between pointer-events-none">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#063b2c]/90 backdrop-blur-md px-3 py-1 text-[11px] font-bold text-[#f4cf72] shadow-md border border-[#d9b45a]/30">
+                      <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                      {lang === "hi"
+                        ? "सत्यापित परामर्शदाता"
+                        : "Verified Consultant"}
+                    </span>
+                    <span className="rounded-full bg-black/60 backdrop-blur-md px-2.5 py-1 text-[10px] font-bold text-white/90">
+                      Pratapgarh, UP
+                    </span>
+                  </div>
+
+                  {/* Bottom Photo Overlay */}
+                  <div className="absolute bottom-4 left-4 right-4 text-white pointer-events-none">
+                    <p className="font-serif text-xl sm:text-2xl font-bold leading-tight drop-shadow-md">
+                      {lang === "hi" ? BUSINESS_CONFIG.nameHi : BUSINESS_CONFIG.name}
+                    </p>
+                    <p className="text-xs text-[#f4cf72] font-semibold mt-0.5 drop-shadow">
+                      {lang === "hi" ? BUSINESS_CONFIG.roleHi : BUSINESS_CONFIG.role}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Professional Background Badge (Teacher + Consultant) */}
+                <div className="mt-4 rounded-2xl border border-[#e4ddcc] bg-white p-3.5 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#063b2c] text-[#f4cf72] shadow-sm">
+                      <GraduationCap size={18} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="rounded bg-[#f6edd7] px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-[#8a6316]">
+                          {lang === "hi" ? "शैक्षणिक पृष्ठभूमि" : "Educator & Planner"}
+                        </span>
+                      </div>
+                      <h4 className="mt-1 text-xs font-bold text-[#11241c] leading-snug">
+                        {lang === "hi"
+                          ? BUSINESS_CONFIG.teacherBackgroundHi
+                          : BUSINESS_CONFIG.teacherBackgroundEn}
+                      </h4>
+                      <p className="mt-0.5 text-[11px] text-black/60 leading-relaxed">
+                        {lang === "hi"
+                          ? "राजकीय विद्यालय में अध्यापन के साथ-साथ पिछले 10 से अधिक वर्षों से आवासीय भवन नियोजन।"
+                          : "Serving as a government school teacher alongside 10+ years of residential house planning."}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Direct Contact Action Buttons Under Photo */}
+                <div className="mt-3.5 grid grid-cols-2 gap-2 sm:gap-2.5">
+                  <a
+                    href={getDineshWhatsAppUrl("Namaste Dinesh ji, mujhe apne plot ka naksha discuss karna hai.")}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-3 py-2.5 text-xs font-bold text-white shadow-md transition hover:bg-[#20ba5a] hover:shadow-lg"
+                  >
+                    <MessageCircle size={15} />
+                    <span>WhatsApp</span>
+                  </a>
+
+                  <a
+                    href={getDineshCallUrl()}
+                    className="flex items-center justify-center gap-1.5 rounded-xl bg-[#063b2c] px-3 py-2.5 text-xs font-bold text-white shadow-md transition hover:bg-[#0b4d3a] hover:shadow-lg"
+                  >
+                    <Phone size={14} />
+                    <span>Call Dinesh</span>
+                  </a>
+                </div>
+
+                {/* Direct Email Link */}
+                <div className="mt-2.5 text-center">
+                  <a
+                    href={getDineshEmailUrl()}
+                    className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-black/60 hover:text-[#063b2c] transition"
+                  >
+                    <Mail size={12} className="text-[#0c7a62]" />
+                    <span>{BUSINESS_CONFIG.publicEmail}</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT 7 COLS: DETAILED PROFILE, EXPERIENCE, EXPERTISE & PROCESS */}
+            <div className="lg:col-span-7 space-y-7">
+              {/* Overline & Heading */}
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-[#d9b45a]/50 bg-[#f6edd7]/80 px-3 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#8a6316] shadow-sm">
+                  <Sparkles size={12} className="text-[#c18c21]" />
+                  <span>
+                    {lang === "hi"
+                      ? "शारदा होमप्लान के सूत्रधार"
+                      : lang === "hinglish"
+                      ? "Person Behind Sarda Homeplan"
+                      : "Meet the Person Behind Sarda Homeplan"}
+                  </span>
+                </div>
+
+                <h2 className="mt-2.5 font-serif text-3xl sm:text-4xl font-extrabold text-[#11241c] leading-tight">
+                  {lang === "hi"
+                    ? "दिनेश कुमार शर्मा"
+                    : "Dinesh Kumar Sharma"}
+                </h2>
+
+                <p className="mt-1 text-sm font-bold text-[#c18c21]">
+                  {lang === "hi"
+                    ? "आवास नियोजन परामर्शदाता (House Planning Consultant)"
+                    : "House Planning Consultant • Sarda Homeplan"}
+                </p>
+              </div>
+
+              {/* Verified Introduction Paragraphs */}
+              <div className="rounded-2xl border border-[#e4ddcc] bg-white p-5 shadow-sm space-y-3 text-xs sm:text-sm text-black/75 leading-relaxed">
+                <p>
+                  {lang === "hi" ? (
+                    <>
+                      <strong>दिनेश कुमार शर्मा</strong> प्रतापगढ़, उत्तर प्रदेश में स्थित एक अनुभवी आवास नियोजन परामर्शदाता हैं।
+                      राजकीय विद्यालय शिक्षक के रूप में अपनी समर्पित सेवा के साथ-साथ, वे पिछले <strong>10 से अधिक वर्षों</strong> से
+                      आवासीय गृह मानचित्र, 2D फ्लोर प्लानिंग और भवन लेआउट तैयारी में सक्रिय रूप से संलग्न हैं।
+                    </>
+                  ) : lang === "hinglish" ? (
+                    <>
+                      <strong>Dinesh Kumar Sharma</strong> Pratapgarh, Uttar Pradesh me sthit ek experienced house planning consultant hain.
+                      Government school teacher ke career ke saath-saath, pichle <strong>10+ saalon</strong> se residential gharon ke nakshe aur planning me actively jude hue hain.
+                    </>
+                  ) : (
+                    <>
+                      <strong>Dinesh Kumar Sharma</strong> is a house planning consultant based in Pratapgarh, Uttar Pradesh.
+                      Alongside his professional career as a government school teacher, he has been involved in residential
+                      house planning and map preparation for <strong>more than 10 years</strong>.
+                    </>
+                  )}
+                </p>
+                <p>
+                  {lang === "hi"
+                    ? "उनका मुख्य दृष्टिकोण प्रत्येक ग्राहक के प्लॉट की वास्तविक दिशा, पारिवारिक आवश्यकताओं और प्राथमिकताओं को पहले गहराई से समझना और फिर उसी के अनुरूप एक व्यावहारिक और सटीक गृह नक्शा तैयार करना है।"
+                    : lang === "hinglish"
+                    ? "Unka main approach har customer ke plot ki orientation, family ki requirements aur budget ko pehle samajhna hai, fir ek practical aur tailored naksha banana hai."
+                    : "His approach focuses on understanding each customer's plot, family requirements and preferences before preparing a practical house plan tailored to the project."}
+                </p>
+              </div>
+
+              {/* THREE ATTRACTIVE PROFILE STATISTICS */}
+              <div className="grid grid-cols-3 gap-3 sm:gap-4">
+                <div className="rounded-2xl border border-[#e4ddcc] bg-white p-3.5 sm:p-4 text-center shadow-sm">
+                  <span className="font-serif text-2xl sm:text-3xl font-extrabold text-[#063b2c] block">
+                    {BUSINESS_CONFIG.experienceYears}
+                  </span>
+                  <p className="mt-1 text-[11px] sm:text-xs font-bold text-[#11241c]">
+                    {lang === "hi" ? "वर्षों का अनुभव" : "Years Experience"}
+                  </p>
+                  <span className="text-[10px] text-black/50 block mt-0.5 hidden sm:block">
+                    {lang === "hi" ? "आवासीय नियोजन" : "House Planning"}
+                  </span>
+                </div>
+
+                <div className="rounded-2xl border border-[#e4ddcc] bg-white p-3.5 sm:p-4 text-center shadow-sm">
+                  <span className="font-serif text-2xl sm:text-3xl font-extrabold text-[#c18c21] block">
+                    {BUSINESS_CONFIG.completedPlans}
+                  </span>
+                  <p className="mt-1 text-[11px] sm:text-xs font-bold text-[#11241c]">
+                    {lang === "hi" ? "तैयार किए गए नक्शे" : "Completed Plans"}
+                  </p>
+                  <span className="text-[10px] text-black/50 block mt-0.5 hidden sm:block">
+                    {lang === "hi" ? "सफल प्रोजेक्ट्स" : "Residential Maps"}
+                  </span>
+                </div>
+
+                <div className="rounded-2xl border border-[#e4ddcc] bg-white p-3.5 sm:p-4 text-center shadow-sm">
+                  <span className="font-serif text-lg sm:text-xl font-extrabold text-[#063b2c] block truncate">
+                    Pratapgarh
+                  </span>
+                  <p className="mt-1 text-[11px] sm:text-xs font-bold text-[#11241c]">
+                    {lang === "hi" ? "& आस-पास के क्षेत्र" : "& Nearby Areas"}
+                  </p>
+                  <span className="text-[10px] text-black/50 block mt-0.5 hidden sm:block">
+                    {lang === "hi" ? "स्थानीय सेवा" : "Local Service"}
+                  </span>
+                </div>
+              </div>
+
+              {/* AREAS OF EXPERTISE (6 REAL SERVICES) */}
+              <div className="rounded-2xl border border-[#e4ddcc] bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-3.5">
+                  <h3 className="font-serif text-base font-bold text-[#11241c]">
+                    {lang === "hi" ? "विशेषज्ञता के क्षेत्र" : "Areas of Expertise"}
+                  </h3>
+                  <span className="text-[10px] font-bold text-[#9b7732] uppercase tracking-wider">
+                    6 Key Services
+                  </span>
+                </div>
+
+                <div className="grid gap-2.5 sm:grid-cols-2">
+                  {BUSINESS_CONFIG.expertise.map((exp, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-start gap-2.5 rounded-xl border border-[#f0ebdf] bg-[#faf8f4] p-3 transition hover:border-[#0c7a62] hover:bg-white"
+                    >
+                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#063b2c] text-[#f4cf72] text-[11px] font-bold">
+                        {idx + 1}
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="text-xs font-bold text-[#11241c]">
+                          {lang === "hi" ? exp.titleHi : exp.titleEn}
+                        </h4>
+                        <p className="text-[11px] text-black/60 mt-0.5 leading-snug">
+                          {lang === "hi" ? exp.descHi : exp.descEn}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* HOW DINESH WORKS (5-STEP VISUAL PROCESS) */}
+              <div className="rounded-2xl border border-[#e4ddcc] bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-serif text-base font-bold text-[#11241c]">
+                    {lang === "hi" ? "कार्य प्रणाली (How Dinesh Works)" : "How Dinesh Works"}
+                  </h3>
+                  <span className="text-[10px] font-bold text-[#0c7a62] uppercase tracking-wider">
+                    5-Step Flow
+                  </span>
+                </div>
+                <p className="text-xs text-black/60 mb-4 leading-relaxed">
+                  {lang === "hi"
+                    ? BUSINESS_CONFIG.philosophyQuoteHi
+                    : BUSINESS_CONFIG.philosophyQuoteEn}
+                </p>
+
+                {/* Visual Step Pipeline */}
+                <div className="grid grid-cols-5 gap-1.5 sm:gap-2 text-center">
+                  {BUSINESS_CONFIG.processSteps.map((step) => (
+                    <div
+                      key={step.stepNumber}
+                      className="group relative rounded-xl border border-[#e4ddcc] bg-[#faf8f4] p-2 sm:p-2.5 transition hover:border-[#063b2c] hover:bg-[#eef8f4]"
+                    >
+                      <div className="mx-auto flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-[#063b2c] text-[#f4cf72] text-[10px] sm:text-xs font-extrabold shadow-sm">
+                        {step.stepNumber}
+                      </div>
+                      <p className="mt-1.5 text-[9px] sm:text-[11px] font-extrabold text-[#11241c] uppercase tracking-wide group-hover:text-[#063b2c]">
+                        {lang === "hi" ? step.titleHi.split(" ")[0] : step.titleEn}
+                      </p>
+                      <span className="text-[8px] text-black/45 mt-0.5 block truncate hidden sm:block">
+                        {step.titleEn}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* CUSTOMER TRUST POINTS */}
+              <div className="rounded-2xl border border-[#e4ddcc] bg-[#fbf9f4] p-4.5">
+                <h4 className="text-xs font-bold text-[#063b2c] uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                  <ShieldCheck size={14} className="text-[#0c7a62]" />
+                  <span>
+                    {lang === "hi" ? "विश्वसनीयता के मानक" : "Customer Trust & Guarantees"}
+                  </span>
+                </h4>
+                <div className="grid gap-2 sm:grid-cols-2 text-xs text-black/75">
+                  {BUSINESS_CONFIG.trustPoints.map((pt, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#0c7a62] text-white text-[10px] font-bold">
+                        ✓
+                      </span>
+                      <span>{lang === "hi" ? pt.hi : pt.en}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* BOTTOM CTA: "Planning your home? Let's discuss your plot." */}
+              <div className="rounded-2xl border-2 border-[#d9b45a]/40 bg-gradient-to-r from-[#063b2c] to-[#0a4837] p-5 sm:p-6 text-white shadow-xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#f4cf72]">
+                      {lang === "hi" ? "सीधा विचार-विमर्श" : "Direct Discussion"}
+                    </span>
+                    <h3 className="font-serif text-xl sm:text-2xl font-bold mt-0.5">
+                      {lang === "hi"
+                        ? "घर बनाने की सोच रहे हैं? आइए अपने प्लॉट पर चर्चा करें।"
+                        : "Planning your home? Let's discuss your plot."}
+                    </h3>
+                    <p className="text-xs text-white/75 mt-1 max-w-md">
+                      {lang === "hi"
+                        ? "दिनेश कुमार शर्मा से सीधे फोन या व्हाट्सएप पर बात करके अपनी आवश्यकताओं के अनुसार नक्शा बनवाएं।"
+                        : "Connect directly with Dinesh Kumar Sharma to translate your plot into a practical, beautiful house map."}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleGetMapClick("Plot Discussion with Dinesh Kumar Sharma")}
+                      className="flex items-center justify-center gap-2 rounded-full bg-[#f4cf72] px-5 py-2.5 text-xs font-extrabold text-[#063b2c] shadow-lg transition hover:bg-[#ffe39c] hover:scale-105"
+                    >
+                      <span>{lang === "hi" ? "नक्शा डिस्कस करें" : "Discuss Your Plan"}</span>
+                      <ArrowRight size={13} />
+                    </button>
+
+                    <a
+                      href={getDineshWhatsAppUrl("Namaste Dinesh ji, mujhe apne plot ka naksha discuss karna hai.")}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center justify-center gap-2 rounded-full border border-white/30 bg-white/10 px-5 py-2.5 text-xs font-bold text-white transition hover:bg-[#25D366] hover:border-[#25D366]"
+                    >
+                      <MessageCircle size={14} />
+                      <span>{lang === "hi" ? "व्हाट्सएप दिनेश" : "WhatsApp Dinesh"}</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =====================================================================
           10. CUSTOMER REVIEWS & FAQ SECTION
       ===================================================================== */}
       <section className="py-20 sm:py-24">
@@ -2267,7 +2639,7 @@ export default function Home() {
                   </button>
 
                   <a
-                    href="https://wa.me/918423406049?text=Namaste%20Sarda%20Homeplan%20team%2C%20mujhe%20apne%20plot%20ka%20naksha%20banwana%20hai."
+                    href={getDineshWhatsAppUrl("Namaste Dinesh ji, mujhe apne plot ka naksha banwana hai.")}
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-6 py-3 text-xs font-bold text-white transition hover:bg-[#25D366] hover:border-[#25D366]"
@@ -2293,7 +2665,7 @@ export default function Home() {
       </section>
 
       {/* =====================================================================
-          12. FOOTER (With Real Phone: 8423406049)
+          12. FOOTER (With Verified Business Details: Dinesh Kumar Sharma)
       ===================================================================== */}
       <footer id="contact" className="border-t border-[#e8e2d4] bg-[#fbf9f4] pt-16 pb-8 text-[#17221b]">
         <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
@@ -2336,7 +2708,7 @@ export default function Home() {
               </p>
               <div className="mt-5 flex items-center gap-3">
                 <a
-                  href="https://wa.me/918423406049"
+                  href={getDineshWhatsAppUrl()}
                   target="_blank"
                   rel="noreferrer"
                   className="flex h-8 w-8 items-center justify-center rounded-full bg-white border border-black/10 text-black/70 hover:bg-[#25D366] hover:text-white transition"
@@ -2345,7 +2717,7 @@ export default function Home() {
                   <MessageCircle size={15} />
                 </a>
                 <a
-                  href="tel:+918423406049"
+                  href={getDineshCallUrl()}
                   className="flex h-8 w-8 items-center justify-center rounded-full bg-white border border-black/10 text-black/70 hover:bg-[#063b2c] hover:text-white transition"
                   aria-label="Phone"
                 >
@@ -2362,6 +2734,7 @@ export default function Home() {
               <ul className="mt-4 space-y-2 text-xs text-black/65">
                 <li><a href="#home" className="hover:text-[#063b2c]">Home</a></li>
                 <li><a href="#about" className="hover:text-[#063b2c]">About Us</a></li>
+                <li><a href="#consultant" className="hover:text-[#063b2c] font-semibold text-[#0c7a62]">{lang === "hi" ? "परामर्शदाता (दिनेश जी)" : "Meet Dinesh"}</a></li>
                 <li><a href="#services" className="hover:text-[#063b2c]">Services</a></li>
                 <li><a href="#portfolio" className="hover:text-[#063b2c]">Portfolio</a></li>
                 <li><a href="#process" className="hover:text-[#063b2c]">How It Works</a></li>
@@ -2392,27 +2765,44 @@ export default function Home() {
               </ul>
             </div>
 
-            {/* Col 4: Contact Us (REAL NUMBER) */}
+            {/* Col 4: Contact Dinesh Kumar Sharma */}
             <div>
               <h4 className="text-xs font-bold uppercase tracking-widest text-[#063b2c]">
-                Contact Us
+                {lang === "hi" ? "संपर्क करें" : "Contact"}
               </h4>
-              <ul className="mt-4 space-y-2.5 text-xs text-black/65">
+              <p className="mt-3 text-xs font-bold text-[#11241c]">
+                {BUSINESS_CONFIG.name}
+              </p>
+              <span className="text-[11px] text-[#8a6316] block font-semibold">
+                {lang === "hi" ? "आवास नियोजन परामर्शदाता" : BUSINESS_CONFIG.role}
+              </span>
+              <ul className="mt-3.5 space-y-2.5 text-xs text-black/65">
                 <li className="flex items-center gap-2">
                   <Phone size={13} className="text-[#0c7a62]" />
-                  <a href="tel:+918423406049" className="hover:text-[#063b2c] font-bold">+91 8423406049</a>
+                  <a href={getDineshCallUrl()} className="hover:text-[#063b2c] font-bold">
+                    {BUSINESS_CONFIG.publicPhoneFormatted}
+                  </a>
                 </li>
                 <li className="flex items-center gap-2">
                   <MessageCircle size={13} className="text-[#0c7a62]" />
-                  <a href="https://wa.me/918423406049" target="_blank" rel="noreferrer" className="hover:text-[#063b2c]">+91 8423406049 (WhatsApp)</a>
+                  <a
+                    href={getDineshWhatsAppUrl()}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="hover:text-[#063b2c]"
+                  >
+                    {BUSINESS_CONFIG.publicPhoneFormatted} (WhatsApp)
+                  </a>
                 </li>
                 <li className="flex items-center gap-2">
                   <Mail size={13} className="text-[#0c7a62]" />
-                  <a href="mailto:sardahomeplan@gmail.com" className="hover:text-[#063b2c]">sardahomeplan@gmail.com</a>
+                  <a href={getDineshEmailUrl()} className="hover:text-[#063b2c]">
+                    {BUSINESS_CONFIG.publicEmail}
+                  </a>
                 </li>
                 <li className="flex items-center gap-2">
                   <MapPin size={13} className="text-[#0c7a62]" />
-                  <span>Pratapgarh, Uttar Pradesh</span>
+                  <span>{BUSINESS_CONFIG.location}</span>
                 </li>
               </ul>
             </div>
@@ -2665,7 +3055,7 @@ export default function Home() {
 
               <div className="mt-4 pt-3 border-t border-[#f0ebdf] text-center">
                 <a
-                  href="https://wa.me/918423406049?text=Namaste%20Sarda%20Homeplan%2C%20mujhe%20apne%20plot%20ke%20naksha%20ke%20baare%20me%20jaankari%20chahiye."
+                  href={getDineshWhatsAppUrl("Namaste Dinesh ji, mujhe apne plot ke naksha ke baare me jaankari chahiye.")}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0c7a62] hover:underline"
@@ -2673,8 +3063,8 @@ export default function Home() {
                   <MessageCircle size={14} />
                   <span>
                     {lang === "hi"
-                      ? "या सीधे व्हाट्सएप (+91 8423406049) पर बात करें"
-                      : "Or chat directly on WhatsApp (+91 8423406049)"}
+                      ? `या सीधे व्हाट्सएप (${BUSINESS_CONFIG.publicPhoneFormatted}) पर बात करें`
+                      : `Or chat directly on WhatsApp (${BUSINESS_CONFIG.publicPhoneFormatted})`}
                   </span>
                 </a>
               </div>
@@ -2779,7 +3169,7 @@ export default function Home() {
                       type="tel"
                       value={mobile}
                       onChange={(e) => setMobile(e.target.value)}
-                      placeholder="e.g. 8423406049"
+                      placeholder="e.g. 9876543210"
                       className="mt-1 w-full rounded-xl border border-black/15 bg-[#faf8f4] px-3.5 py-2 text-xs outline-none focus:border-[#063b2c] focus:bg-white"
                       required
                     />
@@ -2963,9 +3353,9 @@ export default function Home() {
               </button>
 
               <a
-                href={`https://wa.me/918423406049?text=${encodeURIComponent(
-                  `Namaste Sarda Homeplan team! Mujhe aapke featured plan '${activePlanModal.title}' (${activePlanModal.dimensions}) ke baare me baat karni hai.`
-                )}`}
+                href={getDineshWhatsAppUrl(
+                  `Namaste Dinesh ji! Mujhe aapke featured plan '${activePlanModal.title}' (${activePlanModal.dimensions}) ke baare me baat karni hai.`
+                )}
                 target="_blank"
                 rel="noreferrer"
                 className="flex items-center gap-1.5 rounded-full bg-[#25D366] px-4 py-2 text-xs font-bold text-white shadow-lg hover:bg-[#1ebc59] transition"
@@ -3147,15 +3537,15 @@ export default function Home() {
       )}
 
       {/* =====================================================================
-          18. FLOATING WHATSAPP CHAT BUTTON (REAL NUMBER: 8423406049)
+          18. FLOATING WHATSAPP CHAT BUTTON (Verified: Dinesh Kumar Sharma)
       ===================================================================== */}
       <a
-        href="https://wa.me/918423406049?text=Namaste%20Sarda%20Homeplan%2C%20mujhe%20ghar%20ka%20naksha%20banwana%20hai."
+        href={getDineshWhatsAppUrl("Namaste Dinesh ji, mujhe ghar ka naksha banwana hai.")}
         target="_blank"
         rel="noreferrer"
         className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-2xl transition hover:scale-110 hover:shadow-[0_10px_25px_rgba(37,211,102,0.4)]"
-        aria-label="Direct WhatsApp Chat"
-        title="Chat on WhatsApp (+91 8423406049)"
+        aria-label="Direct WhatsApp Chat with Dinesh Kumar Sharma"
+        title={`Chat with Dinesh on WhatsApp (${BUSINESS_CONFIG.publicPhoneFormatted})`}
       >
         <MessageCircle size={28} />
       </a>
