@@ -23,6 +23,8 @@ export interface AdminNotificationItem {
   badgeColor: string;
   createdAt: string;
   isRead: boolean;
+  priority?: number;
+  sequence?: number;
 }
 
 export function generateAdminNotifications({
@@ -204,10 +206,36 @@ export function generateAdminNotifications({
     });
   });
 
-  // Sort by created_at descending (newest first)
-  return notifs.sort((a, b) => {
+  // Priority weights for logical sequence
+  const priorityWeight: Record<string, number> = {
+    reschedule_requested: 1, // High Priority: Reschedule requests
+    visit_availability: 2,   // Customer confirmed/accepted visit
+    revision_requested: 3,   // Customer asked for plan revisions
+    request: 4,              // New customer house-planning requests
+    payment_received: 5,     // Advance payment received
+    payment_pending: 5,
+    registration: 6,         // New customer registrations
+    project: 7,              // Active projects
+  };
+
+  // Sort: Unread first, then priority order, then newest timestamp
+  const sorted = notifs.sort((a, b) => {
+    if (a.isRead !== b.isRead) {
+      return a.isRead ? 1 : -1;
+    }
+    const pA = priorityWeight[a.type] || 10;
+    const pB = priorityWeight[b.type] || 10;
+    if (pA !== pB) return pA - pB;
+
     const tA = new Date(a.createdAt).getTime() || 0;
     const tB = new Date(b.createdAt).getTime() || 0;
     return tB - tA;
   });
+
+  // Assign sequential order numbering (#1, #2, #3...)
+  return sorted.map((item, index) => ({
+    ...item,
+    priority: priorityWeight[item.type] || 10,
+    sequence: index + 1,
+  }));
 }

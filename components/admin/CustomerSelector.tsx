@@ -19,6 +19,7 @@ interface CustomerSelectorProps {
   onCancel: () => void;
   title?: string;
   description?: string;
+  initialCustomers?: CustomerProfileItem[];
 }
 
 export default function CustomerSelector({
@@ -26,34 +27,44 @@ export default function CustomerSelector({
   onCancel,
   title = "Select Customer",
   description = "Choose a verified customer to continue with this action.",
+  initialCustomers = [],
 }: CustomerSelectorProps) {
-  const [customers, setCustomers] = useState<CustomerProfileItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [customers, setCustomers] = useState<CustomerProfileItem[]>(initialCustomers || []);
+  const [loading, setLoading] = useState(initialCustomers.length === 0);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const supabase = createClient();
-
   useEffect(() => {
+    let isMounted = true;
     async function loadCustomers() {
-      setLoading(true);
       try {
+        const supabase = createClient();
         const { data, error } = await supabase
           .from("customer_profiles")
-          .select("id, full_name, mobile, village_city, district, state, created_at")
+          .select("id, full_name, mobile, village_city, district, created_at")
           .order("created_at", { ascending: false });
 
-        if (!error && data) {
+        if (!error && data && isMounted) {
           setCustomers(data);
         }
       } catch (err) {
         console.error("Error loading customers for CustomerSelector:", err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     }
     loadCustomers();
-  }, [supabase]);
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (initialCustomers && initialCustomers.length > 0 && customers.length === 0) {
+      setCustomers(initialCustomers);
+      setLoading(false);
+    }
+  }, [initialCustomers, customers.length]);
 
   const filteredCustomers = useMemo(() => {
     if (!searchQuery.trim()) return customers;

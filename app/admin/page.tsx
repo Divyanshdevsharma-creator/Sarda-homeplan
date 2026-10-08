@@ -274,6 +274,17 @@ export default function AdminDashboard() {
   // Authoritative Dynamic Live Sidebar Counts via Supabase Realtime (FIX #1)
   const sidebarCounts = useAdminSidebarCounts(readNotificationIds);
 
+  // Seen Badges State (FIX #5: Once viewed, sidebar badge numbers clear and persist)
+  const [seenBadges, setSeenBadges] = useState<Record<string, number>>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("sarda_admin_seen_badges");
+        return stored ? JSON.parse(stored) : {};
+      } catch (_) {}
+    }
+    return {};
+  });
+
   // WhatsApp Notification Dispatcher Modal State
   const [whatsappDispatchModal, setWhatsappDispatchModal] = useState<{
     isOpen: boolean;
@@ -768,6 +779,49 @@ export default function AdminDashboard() {
     return adminNotifications.filter((n) => !n.isRead).length;
   }, [adminNotifications]);
 
+  // Toggle Read / Unread handler (Point 6: Always available on every notification)
+  const handleToggleRead = (id: string) => {
+    setReadNotificationIds((prev) => {
+      const isCurrentlyRead = prev.includes(id);
+      const updated = isCurrentlyRead ? prev.filter((x) => x !== id) : [...prev, id];
+      try {
+        localStorage.setItem("sarda_admin_read_notifs", JSON.stringify(updated));
+      } catch (_) {}
+      return updated;
+    });
+  };
+
+  // Sync Seen Badges with Active Tab (Point 5: Once viewed, sidebar badge numbers clear and persist)
+  useEffect(() => {
+    if (activeTab === "overview") return;
+    setSeenBadges((prev) => {
+      let cur = 0;
+      if (activeTab === "requests") cur = sidebarCounts.customerRequests;
+      else if (activeTab === "customers") cur = sidebarCounts.customers;
+      else if (activeTab === "projects") cur = sidebarCounts.projects;
+      else if (activeTab === "visits") cur = sidebarCounts.siteVisits;
+      else if (activeTab === "plans") cur = sidebarCounts.plans;
+      else if (activeTab === "payments") cur = sidebarCounts.payments;
+      else if (activeTab === "notifications") cur = unreadNotifsCount;
+
+      if (prev[activeTab] === cur) return prev;
+      const next = { ...prev, [activeTab]: cur };
+      try {
+        localStorage.setItem("sarda_admin_seen_badges", JSON.stringify(next));
+      } catch (_) {}
+      return next;
+    });
+  }, [activeTab, sidebarCounts, unreadNotifsCount]);
+
+  // Dynamic Unseen Counts for Sidebar Navigation (Clear when seen, show only new deltas)
+  const requestsBadgeCount = Math.max(0, sidebarCounts.customerRequests - (seenBadges["requests"] || 0));
+  const customersBadgeCount = Math.max(0, sidebarCounts.customers - (seenBadges["customers"] || 0));
+  const projectsBadgeCount = Math.max(0, sidebarCounts.projects - (seenBadges["projects"] || 0));
+  const visitsBadgeCount = Math.max(0, sidebarCounts.siteVisits - (seenBadges["visits"] || 0));
+  const plansBadgeCount = Math.max(0, sidebarCounts.plans - (seenBadges["plans"] || 0));
+  const paymentsBadgeCount = Math.max(0, sidebarCounts.payments - (seenBadges["payments"] || 0));
+  const notificationsBadgeCount = Math.max(0, unreadNotifsCount - (seenBadges["notifications"] || 0));
+
   // Open Customer Request Modal
   const openCustomerRequest = async (request: any) => {
     setSelectedRequest(request);
@@ -841,15 +895,21 @@ export default function AdminDashboard() {
     setIsCreatingProject(true);
     const supabase = createClient();
 
+    const customerId =
+      selectedRequest.customer_user_id ||
+      (typeof selectedRequest.id === "string" && selectedRequest.id.startsWith("cust-")
+        ? selectedRequest.id.replace("cust-", "")
+        : selectedRequest.id);
+
     const newProjectData = {
-      customer_id: selectedRequest.customer_user_id || "",
-      customer_request_id: selectedRequest.id,
+      customer_id: customerId,
+      customer_request_id: typeof selectedRequest.id === "number" ? selectedRequest.id : null,
       project_name: projectName.trim(),
       project_status: projectStatus,
-      plot_length: selectedRequest.plot_length,
-      plot_width: selectedRequest.plot_width,
-      measurement_unit: selectedRequest.measurement_unit,
-      floors: selectedRequest.floors,
+      plot_length: Number(selectedRequest.plot_length) || 30,
+      plot_width: Number(selectedRequest.plot_width) || 40,
+      measurement_unit: selectedRequest.measurement_unit || "feet",
+      floors: selectedRequest.floors || "G+1",
     };
 
     const { data: createdProj, error } = await supabase
@@ -892,12 +952,17 @@ export default function AdminDashboard() {
     const supabase = createClient();
 
     const newVisitData = {
-      request_id: selectedRequest.id,
+      request_id: typeof selectedRequest.id === "number" ? selectedRequest.id : null,
       visit_date: visitDate,
       visit_time: visitTime,
       status: "Proposed",
       customer_response: "Pending",
-      notes: visitNotes.trim() || null,
+      notes:
+        typeof selectedRequest.id === "number"
+          ? visitNotes.trim() || null
+          : visitNotes.trim()
+          ? `${visitNotes.trim()} [Customer: ${selectedRequest.full_name} (${selectedRequest.mobile})]`
+          : `[Customer: ${selectedRequest.full_name} (${selectedRequest.mobile})]`,
     };
 
     const { data, error } = await supabase
@@ -912,11 +977,13 @@ export default function AdminDashboard() {
       return;
     }
 
-    // Update request status to Site Visit
-    await supabase
-      .from("customer_requests")
-      .update({ status: "Site Visit" })
-      .eq("id", selectedRequest.id);
+    // Update request status to Site Visit if real request exists
+    if (typeof selectedRequest.id === "number") {
+      await supabase
+        .from("customer_requests")
+        .update({ status: "Site Visit" })
+        .eq("id", selectedRequest.id);
+    }
 
     const createdVisit = data || newVisitData;
 
@@ -1180,16 +1247,18 @@ export default function AdminDashboard() {
     const updatedRequirements = `${existingReqs}\n\n[${tagKey}:${deliverablePayload}]`;
 
     // 3. Update status and requirements in customer_requests table in Supabase
-    const { error: reqError } = await supabase
-      .from("customer_requests")
-      .update({
-        status: newStatus,
-        requirements: updatedRequirements,
-      })
-      .eq("id", reqId);
+    if (typeof reqId === "number") {
+      const { error: reqError } = await supabase
+        .from("customer_requests")
+        .update({
+          status: newStatus,
+          requirements: updatedRequirements,
+        })
+        .eq("id", reqId);
 
-    if (reqError) {
-      console.warn("Status update note:", reqError.message);
+      if (reqError) {
+        console.warn("Status update note:", reqError.message);
+      }
     }
 
     const deliverableItem = newDeliverable || {
@@ -1567,7 +1636,7 @@ export default function AdminDashboard() {
             <NavItem
               icon={ClipboardList}
               label="Customer Requests"
-              badge={sidebarCounts.customerRequests > 0 ? String(sidebarCounts.customerRequests) : undefined}
+              badge={requestsBadgeCount > 0 ? String(requestsBadgeCount) : undefined}
               active={activeTab === "requests"}
               onClick={() => {
                 setActiveTab("requests");
@@ -1579,9 +1648,16 @@ export default function AdminDashboard() {
             <NavItem
               icon={Users}
               label="Customers Directory"
-              badge={sidebarCounts.customers > 0 ? String(sidebarCounts.customers) : undefined}
+              badge={customersBadgeCount > 0 ? String(customersBadgeCount) : undefined}
               active={activeTab === "customers"}
               onClick={() => {
+                setSeenBadges((prev) => {
+                  const next = { ...prev, customers: sidebarCounts.customers };
+                  try {
+                    localStorage.setItem("sarda_admin_seen_badges", JSON.stringify(next));
+                  } catch (_) {}
+                  return next;
+                });
                 window.location.href = "/admin/customers";
               }}
             />
@@ -1589,7 +1665,7 @@ export default function AdminDashboard() {
             <NavItem
               icon={FolderKanban}
               label="Projects Tracking"
-              badge={sidebarCounts.projects > 0 ? String(sidebarCounts.projects) : undefined}
+              badge={projectsBadgeCount > 0 ? String(projectsBadgeCount) : undefined}
               active={activeTab === "projects"}
               onClick={() => {
                 setActiveTab("projects");
@@ -1600,7 +1676,7 @@ export default function AdminDashboard() {
             <NavItem
               icon={MapPin}
               label="Site Visits & Reschedules"
-              badge={sidebarCounts.siteVisits > 0 ? String(sidebarCounts.siteVisits) : undefined}
+              badge={visitsBadgeCount > 0 ? String(visitsBadgeCount) : undefined}
               active={activeTab === "visits"}
               onClick={() => {
                 setActiveTab("visits");
@@ -1611,7 +1687,7 @@ export default function AdminDashboard() {
             <NavItem
               icon={FileImage}
               label="Plans & Deliverables"
-              badge={sidebarCounts.plans > 0 ? String(sidebarCounts.plans) : undefined}
+              badge={plansBadgeCount > 0 ? String(plansBadgeCount) : undefined}
               active={activeTab === "plans"}
               onClick={() => {
                 setActiveTab("plans");
@@ -1622,7 +1698,7 @@ export default function AdminDashboard() {
             <NavItem
               icon={Wallet}
               label="Payments & Advance"
-              badge={sidebarCounts.payments > 0 ? String(sidebarCounts.payments) : undefined}
+              badge={paymentsBadgeCount > 0 ? String(paymentsBadgeCount) : undefined}
               active={activeTab === "payments"}
               onClick={() => {
                 setActiveTab("payments");
@@ -1643,7 +1719,7 @@ export default function AdminDashboard() {
             <NavItem
               icon={Bell}
               label="Notifications"
-              badge={sidebarCounts.notifications > 0 ? String(sidebarCounts.notifications) : undefined}
+              badge={notificationsBadgeCount > 0 ? String(notificationsBadgeCount) : undefined}
               active={activeTab === "notifications"}
               onClick={() => {
                 setActiveTab("notifications");
@@ -2181,6 +2257,186 @@ export default function AdminDashboard() {
                               </td>
                             </tr>
                           ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* SCHEDULED SITE VISITS & PLOT SURVEYS SECTION (POINT 2) */}
+                <div className="rounded-2xl border border-[#ded9cf] bg-white shadow-sm overflow-hidden">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#f0ebdf] p-4 bg-[#faf8f4]">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#063b2c] text-[#f4cf72] shrink-0">
+                        <CalendarDays size={18} />
+                      </div>
+                      <div>
+                        <h3 className="font-serif text-base font-bold text-[#17221b]">
+                          Scheduled Site Visits &amp; Plot Surveys
+                        </h3>
+                        <p className="text-[11px] text-black/55">
+                          Confirmed on-site architectural appointments &amp; land survey dates
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenCustomerSelector("schedule_visit")}
+                        className="rounded-xl bg-[#063b2c] px-3 py-1.5 text-xs font-bold text-[#f4cf72] hover:bg-[#094d3a] transition flex items-center gap-1.5 shadow-sm"
+                      >
+                        <CalendarDays size={14} />
+                        <span>+ Schedule Visit</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("visits")}
+                        className="text-xs font-bold text-[#0c7a62] hover:underline flex items-center gap-1"
+                      >
+                        View All ({siteVisitsList.length}) →
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-[#eeeae3] bg-[#fdfbf7] text-black/50 text-[10px] uppercase font-bold tracking-wider">
+                          <th className="px-4 py-3">Slot Date &amp; Time</th>
+                          <th className="px-4 py-3">Customer</th>
+                          <th className="px-4 py-3">Site Location</th>
+                          <th className="px-4 py-3">Visit Status</th>
+                          <th className="px-4 py-3">Contact</th>
+                          <th className="px-4 py-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#eeeae3]">
+                        {siteVisitsList.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="px-4 py-8 text-center text-sm text-black/40">
+                              No scheduled site visits found. Click &quot;+ Schedule Visit&quot; above to propose an on-site inspection.
+                            </td>
+                          </tr>
+                        ) : (
+                          siteVisitsList.slice(0, 5).map((visit) => {
+                            const req = requests.find((r) => r.id === visit.request_id);
+                            const profile = customerProfiles.find(
+                              (p) => (req && p.id === req.customer_user_id) || (visit.notes && visit.notes.includes(p.full_name))
+                            );
+                            const custName =
+                              req?.full_name ||
+                              profile?.full_name ||
+                              visit.notes?.match(/\[Customer: ([^()]+)/)?.[1]?.trim() ||
+                              `Customer #${visit.request_id || visit.id}`;
+                            const custMobile =
+                              req?.mobile ||
+                              profile?.mobile ||
+                              visit.notes?.match(/\(([^)]+)\)\]/)?.[1]?.trim() ||
+                              "";
+                            const custLocation = req
+                              ? `${req.village_city ? req.village_city + ", " : ""}${req.district || "Location on file"}`
+                              : profile
+                              ? `${profile.village_city ? profile.village_city + ", " : ""}${profile.district || "Location on file"}`
+                              : "Location on file";
+
+                            return (
+                              <tr key={visit.id} className="hover:bg-[#fbf9f5] transition">
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#efe9dc] text-[#5c4a28] shrink-0 font-bold text-[11px]">
+                                      <Clock3 size={15} />
+                                    </div>
+                                    <div>
+                                      <p className="font-bold text-[#17221b]">
+                                        {visit.visit_date
+                                          ? new Date(visit.visit_date).toLocaleDateString("en-IN", {
+                                              day: "numeric",
+                                              month: "short",
+                                              year: "numeric",
+                                            })
+                                          : "Date TBD"}
+                                      </p>
+                                      <p className="text-[11px] font-semibold text-[#8c6710]">
+                                        {visit.visit_time || "Time TBD"}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <p className="font-bold text-[#17221b]">{custName}</p>
+                                  {req && (
+                                    <p className="text-[11px] text-black/50">
+                                      Req #{req.id} • {req.plot_length}×{req.plot_width} {req.measurement_unit || "ft"}
+                                    </p>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-black/70">
+                                  <div className="flex items-center gap-1.5">
+                                    <MapPin size={13} className="text-[#8c6710] shrink-0" />
+                                    <span>{custLocation}</span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex flex-col gap-1 items-start">
+                                    <span
+                                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                                        visit.status === "Confirmed"
+                                          ? "bg-[#eaf5ed] text-[#0c7a62]"
+                                          : visit.status === "Rescheduled"
+                                          ? "bg-[#fae8b2] text-[#8c6710]"
+                                          : "bg-[#eef3f5] text-[#3d515a]"
+                                      }`}
+                                    >
+                                      {visit.status || "Proposed"}
+                                    </span>
+                                    {visit.customer_response && (
+                                      <span className="text-[10px] text-black/50">
+                                        Client: {visit.customer_response}
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3">
+                                  {custMobile ? (
+                                    <div className="flex items-center gap-1.5">
+                                      <a
+                                        href={`tel:${custMobile}`}
+                                        className="rounded-lg p-1.5 text-black/60 hover:bg-black/5 hover:text-[#063b2c]"
+                                        title="Call Customer"
+                                      >
+                                        <Phone size={14} />
+                                      </a>
+                                      <a
+                                        href={`https://wa.me/91${custMobile.replace(/\D/g, "").slice(-10)}?text=${encodeURIComponent(
+                                          `Namaste ${custName} ji, Sarda Homeplan se aapka Site Visit ${visit.visit_date} at ${visit.visit_time} ke liye scheduled hai.`
+                                        )}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="rounded-lg p-1.5 text-[#0c7a62] hover:bg-[#eef8f4]"
+                                        title="Chat on WhatsApp"
+                                      >
+                                        <MessageCircle size={14} />
+                                      </a>
+                                    </div>
+                                  ) : (
+                                    <span className="text-black/40 text-[11px]">—</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveTab("visits");
+                                      setSelectedVisit(visit);
+                                    }}
+                                    className="rounded-lg border border-[#bda76d] px-2.5 py-1 text-[11px] font-bold text-[#705d35] hover:bg-[#173b2e] hover:text-white transition"
+                                  >
+                                    Manage Visit
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })
                         )}
                       </tbody>
                     </table>
@@ -3236,13 +3492,13 @@ export default function AdminDashboard() {
                       No notifications found in this view.
                     </div>
                   ) : (
-                    filteredNotifications.map((notif) => (
+                    filteredNotifications.map((notif, index) => (
                       <div
                         key={notif.id}
                         className={`flex items-start gap-4 p-4 rounded-2xl border transition shadow-sm ${
                           !notif.isRead
                             ? "border-[#bda76d] bg-[#fffdf8]"
-                            : "border-[#ded9cf] bg-white"
+                            : "border-[#ded9cf] bg-white opacity-85 hover:opacity-100"
                         }`}
                       >
                         <div
@@ -3269,7 +3525,10 @@ export default function AdminDashboard() {
 
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="rounded-md bg-[#eee7db] px-2 py-0.5 font-mono text-[11px] font-bold text-[#443826]">
+                                #{notif.sequence || index + 1}
+                              </span>
                               <h4 className="font-bold text-sm text-[#17221b]">
                                 {notif.title}
                               </h4>
@@ -3317,15 +3576,18 @@ export default function AdminDashboard() {
                               {notif.actionLabel}
                             </button>
 
-                            {!notif.isRead && (
-                              <button
-                                type="button"
-                                onClick={() => handleMarkAsRead(notif.id)}
-                                className="rounded-xl border border-[#ded9cf] bg-white px-3 py-1.5 text-xs font-semibold text-black/60 hover:bg-[#faf8f4] transition"
-                              >
-                                Mark as Read
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleToggleRead(notif.id)}
+                              className={`rounded-xl border px-3 py-1.5 text-xs font-semibold transition flex items-center gap-1.5 ${
+                                notif.isRead
+                                  ? "border-[#d0d7d3] bg-[#f2f7f4] text-[#0a523b] hover:bg-[#e4eee8]"
+                                  : "border-[#ded9cf] bg-white text-[#17221b] hover:bg-[#faf8f4]"
+                              }`}
+                            >
+                              <Check size={14} className={notif.isRead ? "text-[#0c7a62]" : "text-black/40"} />
+                              <span>{notif.isRead ? "✓ Read (Mark Unread)" : "Mark as Read"}</span>
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -4328,6 +4590,7 @@ export default function AdminDashboard() {
         <CustomerSelector
           title={customerSelectorConfig.title}
           description={customerSelectorConfig.description}
+          initialCustomers={customerProfiles}
           onSelect={handleCustomerSelected}
           onCancel={() => setCustomerSelectorConfig(null)}
         />
