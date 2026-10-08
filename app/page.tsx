@@ -2174,10 +2174,10 @@ export default function Home() {
             <div className="lg:col-span-5">
               <div className="relative rounded-3xl border-2 border-white bg-gradient-to-b from-white to-[#f4f0e6] p-4 sm:p-5 shadow-2xl">
                 {/* Photo Container */}
-                <div className="relative aspect-[4/5] sm:aspect-[1/1] lg:aspect-[4/5] w-full overflow-hidden rounded-2xl bg-[#063b2c]/10 shadow-inner">
+                <div className="relative aspect-square sm:aspect-[4/5] lg:aspect-square w-full overflow-hidden rounded-2xl bg-[#063b2c]/10 shadow-inner">
                   <Image
                     src={BUSINESS_CONFIG.photoUrl}
-                    alt={`${BUSINESS_CONFIG.name} - ${BUSINESS_CONFIG.role}`}
+                    alt="Dinesh Kumar Sharma - House Planning Consultant at Sarda Homeplan"
                     fill
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 450px"
                     priority
@@ -2269,8 +2269,8 @@ export default function Home() {
               </div>
             </div>
 
-            {/* RIGHT 7 COLS: DETAILED PROFILE, EXPERIENCE, EXPERTISE & PROCESS */}
-            <div className="lg:col-span-7 space-y-7">
+            {/* RIGHT 7 COLS: DETAILED PROFILE, EXPERIENCE & EXPERTISE */}
+            <div className="lg:col-span-7 space-y-6">
               {/* Overline & Heading */}
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-[#d9b45a]/50 bg-[#f6edd7]/80 px-3 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#8a6316] shadow-sm">
@@ -2399,106 +2399,49 @@ export default function Home() {
                   ))}
                 </div>
               </div>
-
-              {/* HOW DINESH WORKS (5-STEP VISUAL PROCESS) */}
-              <div className="rounded-2xl border border-[#e4ddcc] bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-serif text-base font-bold text-[#11241c]">
-                    {lang === "hi" ? "कार्य प्रणाली (How Dinesh Works)" : "How Dinesh Works"}
-                  </h3>
-                  <span className="text-[10px] font-bold text-[#0c7a62] uppercase tracking-wider">
-                    5-Step Flow
-                  </span>
-                </div>
-                <p className="text-xs text-black/60 mb-4 leading-relaxed">
-                  {lang === "hi"
-                    ? BUSINESS_CONFIG.philosophyQuoteHi
-                    : BUSINESS_CONFIG.philosophyQuoteEn}
-                </p>
-
-                {/* Visual Step Pipeline */}
-                <div className="grid grid-cols-5 gap-1.5 sm:gap-2 text-center">
-                  {BUSINESS_CONFIG.processSteps.map((step) => (
-                    <div
-                      key={step.stepNumber}
-                      className="group relative rounded-xl border border-[#e4ddcc] bg-[#faf8f4] p-2 sm:p-2.5 transition hover:border-[#063b2c] hover:bg-[#eef8f4]"
-                    >
-                      <div className="mx-auto flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-[#063b2c] text-[#f4cf72] text-[10px] sm:text-xs font-extrabold shadow-sm">
-                        {step.stepNumber}
-                      </div>
-                      <p className="mt-1.5 text-[9px] sm:text-[11px] font-extrabold text-[#11241c] uppercase tracking-wide group-hover:text-[#063b2c]">
-                        {lang === "hi" ? step.titleHi.split(" ")[0] : step.titleEn}
-                      </p>
-                      <span className="text-[8px] text-black/45 mt-0.5 block truncate hidden sm:block">
-                        {step.titleEn}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* CUSTOMER TRUST POINTS */}
-              <div className="rounded-2xl border border-[#e4ddcc] bg-[#fbf9f4] p-4.5">
-                <h4 className="text-xs font-bold text-[#063b2c] uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-                  <ShieldCheck size={14} className="text-[#0c7a62]" />
-                  <span>
-                    {lang === "hi" ? "विश्वसनीयता के मानक" : "Customer Trust & Guarantees"}
-                  </span>
-                </h4>
-                <div className="grid gap-2 sm:grid-cols-2 text-xs text-black/75">
-                  {BUSINESS_CONFIG.trustPoints.map((pt, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#0c7a62] text-white text-[10px] font-bold">
-                        ✓
-                      </span>
-                      <span>{lang === "hi" ? pt.hi : pt.en}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* BOTTOM CTA: "Planning your home? Let's discuss your plot." */}
-              <div className="rounded-2xl border-2 border-[#d9b45a]/40 bg-gradient-to-r from-[#063b2c] to-[#0a4837] p-5 sm:p-6 text-white shadow-xl">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#f4cf72]">
-                      {lang === "hi" ? "सीधा विचार-विमर्श" : "Direct Discussion"}
-                    </span>
-                    <h3 className="font-serif text-xl sm:text-2xl font-bold mt-0.5">
-                      {lang === "hi"
-                        ? "घर बनाने की सोच रहे हैं? आइए अपने प्लॉट पर चर्चा करें।"
-                        : "Planning your home? Let's discuss your plot."}
-                    </h3>
-                    <p className="text-xs text-white/75 mt-1 max-w-md">
-                      {lang === "hi"
-                        ? "दिनेश कुमार शर्मा से सीधे फोन या व्हाट्सएप पर बात करके अपनी आवश्यकताओं के अनुसार नक्शा बनवाएं।"
-                        : "Connect directly with Dinesh Kumar Sharma to translate your plot into a practical, beautiful house map."}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => handleGetMapClick("Plot Discussion with Dinesh Kumar Sharma")}
-                      className="flex items-center justify-center gap-2 rounded-full bg-[#f4cf72] px-5 py-2.5 text-xs font-extrabold text-[#063b2c] shadow-lg transition hover:bg-[#ffe39c] hover:scale-105"
-                    >
-                      <span>{lang === "hi" ? "नक्शा डिस्कस करें" : "Discuss Your Plan"}</span>
-                      <ArrowRight size={13} />
-                    </button>
-
-                    <a
-                      href={getDineshWhatsAppUrl("Namaste Dinesh ji, mujhe apne plot ka naksha discuss karna hai.")}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center justify-center gap-2 rounded-full border border-white/30 bg-white/10 px-5 py-2.5 text-xs font-bold text-white transition hover:bg-[#25D366] hover:border-[#25D366]"
-                    >
-                      <MessageCircle size={14} />
-                      <span>{lang === "hi" ? "व्हाट्सएप दिनेश" : "WhatsApp Dinesh"}</span>
-                    </a>
-                  </div>
-                </div>
-              </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =====================================================================
+          9.6. CUSTOMER TRUST & GUARANTEES (Compact Dedicated Trust Section)
+      ===================================================================== */}
+      <section className="border-t border-[#e8e2d4] bg-white py-12 sm:py-14">
+        <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#f0ebdf] pb-6 mb-8">
+            <div>
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={18} className="text-[#0c7a62]" />
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#9b7732]">
+                  {lang === "hi" ? "हमारा भरोसा व मानक" : "Our Commitment & Standards"}
+                </span>
+              </div>
+              <h3 className="mt-1.5 font-serif text-2xl sm:text-3xl font-extrabold text-[#11241c]">
+                {lang === "hi" ? "विश्वसनीयता के मानक एवं गारंटी" : "Customer Trust & Guarantees"}
+              </h3>
+            </div>
+            <p className="text-xs sm:text-sm text-black/60 max-w-md">
+              {lang === "hi"
+                ? "प्रतापगढ़ एवं समीपवर्ती क्षेत्रों में 100% पारदर्शी, सटीक व व्यावहारिक गृह नियोजन का भरोसा।"
+                : "Honest, transparent, and requirement-tailored house planning you can rely on."}
+            </p>
+          </div>
+
+          <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+            {BUSINESS_CONFIG.trustPoints.map((pt, idx) => (
+              <div
+                key={idx}
+                className="flex items-center gap-3 rounded-2xl border border-[#e4ddcc] bg-[#faf8f4] p-4 transition hover:border-[#0c7a62] hover:bg-white hover:shadow-sm"
+              >
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#0c7a62] text-white text-xs font-bold shadow-sm">
+                  ✓
+                </div>
+                <span className="text-xs font-semibold text-[#11241c] leading-snug">
+                  {lang === "hi" ? pt.hi : pt.en}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       </section>
