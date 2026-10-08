@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Users,
   Search,
@@ -53,6 +54,7 @@ export interface CustomerDirectoryItem {
 }
 
 export default function AdminCustomersDirectoryPage() {
+  const router = useRouter();
   const [customers, setCustomers] = useState<CustomerDirectoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +64,20 @@ export default function AdminCustomersDirectoryPage() {
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
 
   const supabase = createClient();
+
+  useEffect(() => {
+    const hasAdminCookie =
+      document.cookie.includes("sarada_admin_logged_in=true") ||
+      document.cookie.includes("sarda_admin_logged_in=true");
+    const hasAdminStorage =
+      typeof window !== "undefined" &&
+      (localStorage.getItem("sarada_admin_logged_in") === "true" ||
+        localStorage.getItem("sarda_admin_logged_in") === "true");
+
+    if (!hasAdminCookie && !hasAdminStorage) {
+      router.push("/admin/login");
+    }
+  }, [router]);
 
   const fetchDirectory = useCallback(async () => {
     setLoading(true);

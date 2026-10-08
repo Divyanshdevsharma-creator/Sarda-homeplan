@@ -41,10 +41,12 @@ import {
   Printer,
   ShieldCheck,
   Compass,
+  UserPlus,
 } from "lucide-react";
 
 import { useEffect, useState, useMemo, type ComponentType } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createClient } from "../../lib/supabase-client";
 import { useAdminSidebarCounts } from "@/lib/hooks/useAdminSidebarCounts";
 import CustomerSelector, { CustomerProfileItem } from "@/components/admin/CustomerSelector";
@@ -170,6 +172,7 @@ function StatusBadge({ status }: { status: string }) {
    MAIN ADMIN DASHBOARD
 ===================================================== */
 export default function AdminDashboard() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -248,13 +251,28 @@ export default function AdminDashboard() {
 
   // Admin Profile Info (FIX #3 Part B)
   const [adminProfile, setAdminProfile] = useState<{
+    id?: number;
     full_name?: string;
     role?: string;
     email?: string;
+    mobile?: string;
   }>({
     full_name: "Admin Office",
     role: "Super Admin",
   });
+
+  // Multi-Admin Role Management State
+  const [adminTeam, setAdminTeam] = useState<any[]>([]);
+  const [loadingAdminTeam, setLoadingAdminTeam] = useState(false);
+  const [showAddAdminModal, setShowAddAdminModal] = useState(false);
+  const [newAdminName, setNewAdminName] = useState("");
+  const [newAdminEmail, setNewAdminEmail] = useState("");
+  const [newAdminMobile, setNewAdminMobile] = useState("");
+  const [newAdminPassword, setNewAdminPassword] = useState("");
+  const [newAdminRole, setNewAdminRole] = useState<"Admin" | "Super Admin">("Admin");
+  const [adminActionError, setAdminActionError] = useState("");
+  const [adminActionSuccess, setAdminActionSuccess] = useState("");
+  const [isSubmittingAdmin, setIsSubmittingAdmin] = useState(false);
 
   // Customer Selector Modal State (FIX #2)
   const [customerSelectorConfig, setCustomerSelectorConfig] = useState<{
@@ -597,14 +615,41 @@ export default function AdminDashboard() {
     };
   }, []);
 
-  // Sync Admin Profile from database or localStorage (FIX #3 Part B)
+  // Fetch All Administrators for Team Management
+  const fetchAdminTeam = async () => {
+    setLoadingAdminTeam(true);
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("admins")
+        .select("id, full_name, email, mobile, role, is_active, created_at")
+        .order("id", { ascending: true });
+      if (!error && data) {
+        setAdminTeam(data);
+      }
+    } catch (_) {}
+    setLoadingAdminTeam(false);
+  };
+
+  // Sync Admin Profile and Team from database / session
   useEffect(() => {
+    // 1. Client-side authentication check
+    const hasAdminCookie =
+      document.cookie.includes("sarada_admin_logged_in=true") ||
+      document.cookie.includes("sarda_admin_logged_in=true");
+    const hasAdminStorage =
+      typeof window !== "undefined" &&
+      (localStorage.getItem("sarada_admin_logged_in") === "true" ||
+        localStorage.getItem("sarda_admin_logged_in") === "true");
+
+    let storedEmail = "";
     if (typeof window !== "undefined") {
       const storedName = localStorage.getItem("sarada_admin_name");
       const storedRole = localStorage.getItem("sarada_admin_role");
-      const storedEmail =
+      storedEmail =
         localStorage.getItem("sarada_admin_email") ||
-        localStorage.getItem("sarda_admin_email");
+        localStorage.getItem("sarda_admin_email") ||
+        "";
       if (storedName) {
         setAdminProfile({
           full_name: storedName,
@@ -614,21 +659,159 @@ export default function AdminDashboard() {
       }
     }
 
-    const fetchAdminInfo = async () => {
+    const verifyAndFetchAdmin = async () => {
+      const supabase = createClient();
+      if (!hasAdminCookie && !hasAdminStorage) {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          router.push("/admin/login");
+          return;
+        }
+      }
+
       try {
-        const supabase = createClient();
-        const { data } = await supabase
+        let query = supabase
           .from("admins")
-          .select("full_name, role, email")
-          .limit(1)
-          .maybeSingle();
+          .select("id, full_name, role, email, mobile, is_active");
+
+        if (storedEmail) {
+          query = query.eq("email", storedEmail);
+        } else {
+          query = query.limit(1);
+        }
+
+        const { data } = await query.maybeSingle();
         if (data) {
           setAdminProfile(data);
+          if (typeof window !== "undefined") {
+            if (data.full_name) localStorage.setItem("sarada_admin_name", data.full_name);
+            if (data.role) localStorage.setItem("sarada_admin_role", data.role);
+          }
         }
       } catch (_) {}
     };
-    fetchAdminInfo();
-  }, []);
+
+    verifyAndFetchAdmin();
+    fetchAdminTeam();
+  }, [router]);
+
+  // Super Admin: Add New Administrator
+  const handleCreateAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAdminActionError("");
+    setAdminActionSuccess("");
+
+    if (
+      !newAdminName.trim() ||
+      !newAdminEmail.trim() ||
+      !newAdminMobile.trim() ||
+      !newAdminPassword.trim()
+    ) {
+      setAdminActionError("Please fill in all required fields.");
+      return;
+    }
+
+    if (newAdminPassword.trim().length < 6) {
+      setAdminActionError("Password must be at least 6 characters.");
+      return;
+    }
+
+    // Role check: Only Super Admin can provision admins
+    if (adminProfile?.role !== "Super Admin") {
+      setAdminActionError(
+        "Only Super Admin is authorized to add administrators."
+      );
+      return;
+    }
+
+    setIsSubmittingAdmin(true);
+    const supabase = createClient();
+
+    try {
+      // 1. Insert into admins table
+      const { error: insertErr } = await supabase.from("admins").insert({
+        full_name: newAdminName.trim(),
+        email: newAdminEmail.trim().toLowerCase(),
+        mobile: newAdminMobile.trim().replace(/\D/g, ""),
+        password: newAdminPassword.trim(),
+        role: newAdminRole,
+        is_active: true,
+      });
+
+      if (insertErr) {
+        setAdminActionError(insertErr.message);
+        setIsSubmittingAdmin(false);
+        return;
+      }
+
+      // 2. Optionally create auth account
+      try {
+        await supabase.auth.signUp({
+          email: newAdminEmail.trim().toLowerCase(),
+          password: newAdminPassword.trim(),
+          options: {
+            data: {
+              full_name: newAdminName.trim(),
+              role: newAdminRole,
+              is_admin: true,
+            },
+          },
+        });
+      } catch (_) {}
+
+      setAdminActionSuccess(
+        `Administrator "${newAdminName}" successfully added!`
+      );
+      setNewAdminName("");
+      setNewAdminEmail("");
+      setNewAdminMobile("");
+      setNewAdminPassword("");
+      setNewAdminRole("Admin");
+      setShowAddAdminModal(false);
+      fetchAdminTeam();
+    } catch (err: any) {
+      setAdminActionError(err?.message || "Failed to create administrator.");
+    } finally {
+      setIsSubmittingAdmin(false);
+    }
+  };
+
+  // Super Admin: Toggle Administrator Active/Inactive Status
+  const handleToggleAdminStatus = async (targetAdmin: any) => {
+    // Protection rule: Cannot deactivate primary Super Admin
+    if (
+      targetAdmin.email?.toLowerCase() === "admin@saradahomeplan.com" ||
+      targetAdmin.id === 1
+    ) {
+      alert("Primary Super Admin account cannot be deactivated.");
+      return;
+    }
+
+    // Permission check
+    if (adminProfile?.role !== "Super Admin") {
+      alert("Only Super Admin can change administrator status.");
+      return;
+    }
+
+    const nextStatus = !targetAdmin.is_active;
+    const supabase = createClient();
+    try {
+      const { error } = await supabase
+        .from("admins")
+        .update({ is_active: nextStatus })
+        .eq("id", targetAdmin.id);
+
+      if (error) {
+        alert(`Error updating admin status: ${error.message}`);
+      } else {
+        fetchAdminTeam();
+      }
+    } catch (err: any) {
+      alert(err?.message || "Failed to update admin status.");
+    }
+  };
 
   // Quick Action Customer Selector Handler (FIX #2: NEVER auto-select requests[0])
   const handleOpenCustomerSelector = (
@@ -3685,17 +3868,216 @@ export default function AdminDashboard() {
             ========================================================= */}
             {activeTab === "settings" && (
               <div className="space-y-6">
-                <div className="bg-white p-5 rounded-2xl border border-[#ded9cf] shadow-sm">
-                  <h2 className="font-serif text-2xl font-bold text-[#17221b]">
-                    Consultancy & Office Configuration
-                  </h2>
-                  <p className="text-xs text-black/55">
-                    Operational details for Sarda Homeplan house planning consultancy.
-                  </p>
+                {/* SETTINGS HEADER */}
+                <div className="bg-white p-5 rounded-2xl border border-[#ded9cf] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="font-serif text-2xl font-bold text-[#17221b]">
+                      Consultancy Configuration &amp; Administrators
+                    </h2>
+                    <p className="text-xs text-black/55 mt-0.5">
+                      Operational details, team permissions, and multi-admin role access control.
+                    </p>
+                  </div>
+
+                  {adminProfile?.role === "Super Admin" && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAdminActionError("");
+                        setAdminActionSuccess("");
+                        setShowAddAdminModal(true);
+                      }}
+                      className="inline-flex items-center gap-2 rounded-xl bg-[#063b2c] px-4 py-2.5 text-xs font-bold text-[#f4cf72] shadow-sm hover:bg-[#0a4d38] transition shrink-0"
+                    >
+                      <UserPlus size={16} />
+                      <span>+ Add Administrator</span>
+                    </button>
+                  )}
                 </div>
 
+                {/* LOGGED IN ADMIN IDENTITY CARD */}
+                <div className="rounded-2xl border border-[#ded9cf] bg-gradient-to-r from-[#fbf9f4] to-[#f4eee2] p-5 shadow-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3.5">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#063b2c] text-xl font-bold font-serif text-[#f4cf72] shadow-md">
+                        {adminProfile?.full_name ? adminProfile.full_name.slice(0, 2).toUpperCase() : "AD"}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-serif text-lg font-bold text-[#17221b]">
+                            {adminProfile?.full_name || "Admin"}
+                          </h3>
+                          <span
+                            className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold border ${
+                              adminProfile?.role === "Super Admin"
+                                ? "bg-amber-100 text-amber-800 border-amber-300"
+                                : "bg-emerald-100 text-emerald-800 border-emerald-300"
+                            }`}
+                          >
+                            {adminProfile?.role === "Super Admin"
+                              ? "👑 Super Admin (System Owner)"
+                              : "💼 Admin (Business Owner)"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-black/60 mt-0.5 flex items-center gap-3">
+                          <span>{adminProfile?.email || "admin@saradahomeplan.com"}</span>
+                          {adminProfile?.mobile && <span>• +91 {adminProfile.mobile}</span>}
+                        </p>
+                      </div>
+                    </div>
+
+                    <Link
+                      href="/admin/profile"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-[#ded9cf] bg-white px-3.5 py-2 text-xs font-bold text-[#063b2c] hover:bg-[#f6f2e8] transition shadow-sm shrink-0"
+                    >
+                      <Settings size={14} />
+                      <span>Edit My Admin Profile</span>
+                    </Link>
+                  </div>
+                </div>
+
+                {/* MULTI-ADMIN DIRECTORY */}
+                <div className="rounded-2xl border border-[#ded9cf] bg-white p-5 space-y-4 shadow-sm">
+                  <div className="flex items-center justify-between border-b border-[#ded9cf] pb-3">
+                    <div>
+                      <h3 className="font-serif text-lg font-bold text-[#17221b] flex items-center gap-2">
+                        <Users size={18} className="text-[#063b2c]" />
+                        <span>Administrator Accounts Directory</span>
+                      </h3>
+                      <p className="text-xs text-black/55 mt-0.5">
+                        Multi-admin role system with Super Admin ownership &amp; client administrator accounts.
+                      </p>
+                    </div>
+
+                    <span className="rounded-full bg-[#f3efe6] px-3 py-1 text-xs font-bold text-[#063b2c]">
+                      {adminTeam.length} Authorized Admin{adminTeam.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+
+                  {adminActionSuccess && (
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 flex items-center gap-2">
+                      <CheckCircle2 size={16} className="text-emerald-600" />
+                      <span>{adminActionSuccess}</span>
+                    </div>
+                  )}
+
+                  {loadingAdminTeam ? (
+                    <div className="p-8 text-center text-xs text-black/50">
+                      <RefreshCw size={20} className="animate-spin mx-auto text-[#063b2c] mb-2" />
+                      Loading administrative accounts...
+                    </div>
+                  ) : adminTeam.length === 0 ? (
+                    <div className="p-8 text-center text-xs text-black/50">
+                      No administrator accounts found.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr className="border-b border-[#eee8db] text-[11px] font-bold uppercase tracking-wider text-black/50">
+                            <th className="py-2.5 px-3">Administrator</th>
+                            <th className="py-2.5 px-3">Contact</th>
+                            <th className="py-2.5 px-3">Role</th>
+                            <th className="py-2.5 px-3">Status</th>
+                            <th className="py-2.5 px-3 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#f2ece1]">
+                          {adminTeam.map((adm) => {
+                            const isCurrentUser =
+                              adm.email?.toLowerCase() === adminProfile?.email?.toLowerCase() ||
+                              adm.id === adminProfile?.id;
+                            const isPrimaryOwner =
+                              adm.email?.toLowerCase() === "admin@saradahomeplan.com" || adm.id === 1;
+
+                            return (
+                              <tr key={adm.id} className="hover:bg-[#faf8f4] transition">
+                                <td className="py-3 px-3">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#063b2c] text-xs font-bold font-serif text-[#f4cf72]">
+                                      {adm.full_name ? adm.full_name.slice(0, 2).toUpperCase() : "AD"}
+                                    </div>
+                                    <div>
+                                      <p className="font-bold text-[#17221b] flex items-center gap-1.5">
+                                        <span>{adm.full_name}</span>
+                                        {isCurrentUser && (
+                                          <span className="rounded bg-[#063b2c]/10 px-1.5 py-0.2 text-[9px] font-bold text-[#063b2c]">
+                                            You
+                                          </span>
+                                        )}
+                                      </p>
+                                      <p className="text-[11px] text-black/45">ID #{adm.id}</p>
+                                    </div>
+                                  </div>
+                                </td>
+
+                                <td className="py-3 px-3">
+                                  <p className="font-medium text-[#17221b]">{adm.email}</p>
+                                  <p className="text-[11px] text-black/50">+91 {adm.mobile || "—"}</p>
+                                </td>
+
+                                <td className="py-3 px-3">
+                                  <span
+                                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold border ${
+                                      adm.role === "Super Admin"
+                                        ? "bg-amber-50 text-amber-800 border-amber-200"
+                                        : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                    }`}
+                                  >
+                                    {adm.role === "Super Admin" ? "👑 Super Admin" : "💼 Admin"}
+                                  </span>
+                                </td>
+
+                                <td className="py-3 px-3">
+                                  <span
+                                    className={`inline-flex items-center gap-1 text-[11px] font-semibold ${
+                                      adm.is_active ? "text-emerald-700" : "text-black/40"
+                                    }`}
+                                  >
+                                    <span
+                                      className={`h-2 w-2 rounded-full ${
+                                        adm.is_active ? "bg-emerald-500" : "bg-black/30"
+                                      }`}
+                                    />
+                                    <span>{adm.is_active ? "Active" : "Inactive"}</span>
+                                  </span>
+                                </td>
+
+                                <td className="py-3 px-3 text-right">
+                                  {adminProfile?.role === "Super Admin" ? (
+                                    isPrimaryOwner ? (
+                                      <span className="text-[10px] font-semibold text-black/40 italic">
+                                        Primary Owner
+                                      </span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleToggleAdminStatus(adm)}
+                                        className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition ${
+                                          adm.is_active
+                                            ? "border border-red-200 text-red-700 hover:bg-red-50"
+                                            : "border border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                                        }`}
+                                      >
+                                        {adm.is_active ? "Deactivate" : "Activate"}
+                                      </button>
+                                    )
+                                  ) : (
+                                    <span className="text-[10px] text-black/40">Super Admin only</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* CONSULTANCY PROFILE & OWNER POLICIES */}
                 <div className="grid gap-6 lg:grid-cols-2">
-                  <div className="rounded-2xl border border-[#ded9cf] bg-white p-5 space-y-4">
+                  <div className="rounded-2xl border border-[#ded9cf] bg-white p-5 space-y-4 shadow-sm">
                     <h3 className="font-bold text-sm text-[#17221b]">Consultancy Profile</h3>
                     <div className="space-y-3 text-xs">
                       <div>
@@ -3703,15 +4085,15 @@ export default function AdminDashboard() {
                         <input
                           value="Sarda Homeplan Consultancy"
                           readOnly
-                          className="w-full mt-1 p-2.5 rounded-xl border border-[#ded9cf] bg-[#faf8f4] font-semibold"
+                          className="w-full mt-1 p-2.5 rounded-xl border border-[#ded9cf] bg-[#faf8f4] font-semibold text-[#17221b]"
                         />
                       </div>
                       <div>
-                        <label className="block text-black/50 uppercase font-bold text-[10px]">Primary Region</label>
+                        <label className="block text-black/50 uppercase font-bold text-[10px]">Primary Operating Region</label>
                         <input
                           value="Pratapgarh, Prayagraj, Varanasi, Gorakhpur, Patna"
                           readOnly
-                          className="w-full mt-1 p-2.5 rounded-xl border border-[#ded9cf] bg-[#faf8f4]"
+                          className="w-full mt-1 p-2.5 rounded-xl border border-[#ded9cf] bg-[#faf8f4] text-[#17221b]"
                         />
                       </div>
                       <div>
@@ -3719,20 +4101,154 @@ export default function AdminDashboard() {
                         <input
                           value="₹1,000 (Standard) / ₹2,000 (Commercial/G+2)"
                           readOnly
-                          className="w-full mt-1 p-2.5 rounded-xl border border-[#ded9cf] bg-[#faf8f4]"
+                          className="w-full mt-1 p-2.5 rounded-xl border border-[#ded9cf] bg-[#faf8f4] text-[#17221b]"
                         />
                       </div>
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-[#ded9cf] bg-white p-5 space-y-4">
+                  <div className="rounded-2xl border border-[#ded9cf] bg-white p-5 space-y-4 shadow-sm">
                     <h3 className="font-bold text-sm text-[#17221b]">Owner Policy Notes</h3>
                     <div className="rounded-xl bg-[#faf8f4] p-4 text-xs space-y-2 text-black/70 leading-relaxed border border-[#eee7db]">
-                      <p>• <strong>Site Visits:</strong> Never automated; mutually confirmed by architect.</p>
+                      <p>• <strong>Site Visits:</strong> Always mutually scheduled and confirmed directly with the customer.</p>
                       <p>• <strong>Mistri Handout:</strong> Printed on-site or shared on WhatsApp in bilingual Hindi-English.</p>
                       <p>• <strong>Vastu Standard:</strong> North-East Ishanya (Puja/Open), South-East Agneya (Kitchen), South-West Nairutya (Master Bedroom).</p>
                     </div>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* =========================================================
+                SUPER ADMIN: ADD ADMINISTRATOR MODAL
+            ========================================================= */}
+            {showAddAdminModal && (
+              <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+                <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-[#ded9cf] bg-[#f8f5ed] shadow-2xl">
+                  <div className="flex items-center justify-between border-b border-[#ded9cf] bg-white px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#063b2c] text-[#f4cf72]">
+                        <UserPlus size={16} />
+                      </div>
+                      <div>
+                        <h3 className="font-serif text-base font-bold text-[#17221b]">
+                          Add New Administrator
+                        </h3>
+                        <p className="text-[11px] text-black/50">
+                          Provision a team member or client admin account.
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowAddAdminModal(false)}
+                      className="rounded-xl p-1.5 text-black/40 hover:bg-black/5 hover:text-black"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleCreateAdmin} className="p-6 space-y-4 text-xs">
+                    {adminActionError && (
+                      <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+                        {adminActionError}
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block font-bold text-[11px] text-[#17221b] mb-1">
+                        Full Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newAdminName}
+                        onChange={(e) => setNewAdminName(e.target.value)}
+                        placeholder="e.g. Ramesh Kumar"
+                        className="h-10 w-full rounded-xl border border-[#ded9cf] bg-white px-3 font-medium outline-none focus:border-[#063b2c]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-[11px] text-[#17221b] mb-1">
+                        Email Address *
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={newAdminEmail}
+                        onChange={(e) => setNewAdminEmail(e.target.value)}
+                        placeholder="e.g. ramesh@saradahomeplan.com"
+                        className="h-10 w-full rounded-xl border border-[#ded9cf] bg-white px-3 font-medium outline-none focus:border-[#063b2c]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-[11px] text-[#17221b] mb-1">
+                        Mobile Number (10 digits) *
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        value={newAdminMobile}
+                        onChange={(e) => setNewAdminMobile(e.target.value)}
+                        placeholder="e.g. 9876543210"
+                        className="h-10 w-full rounded-xl border border-[#ded9cf] bg-white px-3 font-medium outline-none focus:border-[#063b2c]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-[11px] text-[#17221b] mb-1">
+                        Initial Password (min 6 chars) *
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        minLength={6}
+                        value={newAdminPassword}
+                        onChange={(e) => setNewAdminPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="h-10 w-full rounded-xl border border-[#ded9cf] bg-white px-3 font-medium outline-none focus:border-[#063b2c]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-[11px] text-[#17221b] mb-1">
+                        Administrator Role *
+                      </label>
+                      <select
+                        value={newAdminRole}
+                        onChange={(e) => setNewAdminRole(e.target.value as any)}
+                        className="h-10 w-full rounded-xl border border-[#ded9cf] bg-white px-3 font-medium outline-none focus:border-[#063b2c]"
+                      >
+                        <option value="Admin">Admin (Business Owner / Operational Data)</option>
+                        <option value="Super Admin">Super Admin (System Owner &amp; Provisioning)</option>
+                      </select>
+                      <p className="mt-1 text-[10px] text-black/50">
+                        {newAdminRole === "Super Admin"
+                          ? "Full platform control including adding & managing future administrators."
+                          : "Full operational access to customers, requests, projects, site visits & payments."}
+                      </p>
+                    </div>
+
+                    <div className="pt-2 flex items-center justify-end gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setShowAddAdminModal(false)}
+                        className="rounded-xl border border-[#ded9cf] bg-white px-4 py-2 text-xs font-semibold text-black/70 hover:bg-[#eee8dc]"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isSubmittingAdmin}
+                        className="rounded-xl bg-[#063b2c] px-5 py-2 text-xs font-bold text-[#f4cf72] hover:bg-[#0a4d38] disabled:opacity-50 shadow-sm"
+                      >
+                        {isSubmittingAdmin ? "Creating Admin..." : "Create Administrator"}
+                      </button>
+                    </div>
+                  </form>
                 </div>
               </div>
             )}

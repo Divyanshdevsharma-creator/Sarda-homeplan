@@ -132,7 +132,7 @@ export default function CustomerSignupPage() {
       const realUserId = signupData.user.id;
 
       // 1. Create real customer profile in Supabase database
-      const { error: profErr } = await supabase.from("customer_profiles").upsert({
+      const fullProfilePayload = {
         id: realUserId,
         full_name: fullName.trim(),
         mobile: cleanMobile,
@@ -142,10 +142,24 @@ export default function CustomerSignupPage() {
         property_type: "Residential Plot",
         preferred_language: "Hindi",
         updated_at: new Date().toISOString(),
-      });
+      };
+
+      const { error: profErr } = await supabase
+        .from("customer_profiles")
+        .upsert(fullProfilePayload);
 
       if (profErr) {
-        console.warn("Profile upsert notice:", profErr.message);
+        // Fallback to base columns that exist on customer_profiles
+        try {
+          await supabase.from("customer_profiles").upsert({
+            id: realUserId,
+            full_name: fullName.trim(),
+            mobile: cleanMobile,
+            village_city: villageCity.trim(),
+            district: district.trim(),
+            updated_at: new Date().toISOString(),
+          });
+        } catch (_) {}
       }
 
       // 2. Sign in to establish active session

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -14,6 +14,8 @@ import {
   FileText,
   Home,
   MessageCircle,
+  RefreshCw,
+  ShieldCheck,
 } from "lucide-react";
 import { createClient } from "../../../lib/supabase-client";
 
@@ -26,30 +28,85 @@ export default function CustomerLoginPage() {
   const [loginMethod, setLoginMethod] = useState<"email" | "mobile">("email");
   const [mobileAuthType, setMobileAuthType] = useState<"password" | "otp">("otp");
 
-  // OTP State
+  // Secure Supabase Phone OTP State
   const [otpInput, setOtpInput] = useState("");
-  const [generatedOtp, setGeneratedOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
-  const [otpMessage, setOtpMessage] = useState("");
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [resendCountdown, setResendCountdown] = useState(0);
 
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  // Send OTP Handler
-  const handleSendOtp = () => {
+  // Countdown timer for Resend OTP
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (resendCountdown > 0) {
+      timer = setTimeout(() => {
+        setResendCountdown((prev) => Math.max(0, prev - 1));
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [resendCountdown]);
+
+  // Send OTP via Supabase Phone Authentication (SMS)
+  const handleSendOtp = async () => {
     setErrorMessage("");
-    const cleanMobile = mobile.trim().replace(/\D/g, "");
-    if (cleanMobile.length < 10) {
-      setErrorMessage("Please enter a valid 10-digit mobile number to receive OTP.");
+    const cleanDigits = mobile.trim().replace(/\D/g, "");
+    const cleanMobile = cleanDigits.slice(-10);
+    if (!cleanMobile || cleanMobile.length !== 10) {
+      setErrorMessage("Please enter a valid 10-digit Indian mobile number.");
       return;
     }
 
-    const randomOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(randomOtp);
-    setOtpSent(true);
-    setOtpMessage(`Verification OTP: ${randomOtp} (Sent via SMS / WhatsApp)`);
+    const formattedPhone = `+91${cleanMobile}`;
+    setIsSendingOtp(true);
+    const supabase = createClient();
+
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        phone: formattedPhone,
+      });
+
+      if (error) {
+        if (
+          error.message?.includes("phone_provider_disabled") ||
+          error.message?.includes("Unsupported phone provider")
+        ) {
+          setErrorMessage(
+            "SMS OTP provider is currently being configured in Supabase. Please login with Email & Password or contact Sarda Homeplan support."
+          );
+        } else if (
+          error.message?.toLowerCase().includes("rate limit") ||
+          error.message?.toLowerCase().includes("too many")
+        ) {
+          setErrorMessage(
+            "Too many OTP requests. Please wait a minute before requesting another code."
+          );
+        } else {
+          setErrorMessage(
+            error.message || "Failed to send SMS OTP. Please check your mobile number."
+          );
+        }
+        setIsSendingOtp(false);
+        return;
+      }
+
+      setOtpSent(true);
+      setResendCountdown(60);
+      setOtpInput("");
+      setErrorMessage("");
+    } catch (err: any) {
+      setErrorMessage(
+        err?.message || "An unexpected error occurred while sending SMS OTP."
+      );
+    } finally {
+      setIsSendingOtp(false);
+    }
   };
 
   const getTargetUrl = () => {
@@ -108,11 +165,137 @@ export default function CustomerLoginPage() {
     }
   };
 
+  // Verify OTP via Supabase Phone Authentication
+  const handleVerifyOtp = async () => {
+    setErrorMessage("");
+    const cleanDigits = mobile.trim().replace(/\D/g, "");
+    const cleanMobile = cleanDigits.slice(-10);
+    if (!cleanMobile || cleanMobile.length !== 10) {
+      setErrorMessage("Please enter a valid 10-digit mobile number.");
+      return;
+    }
+
+    const cleanOtp = otpInput.trim().replace(/\D/g, "");
+    if (cleanOtp.length !== 6) {
+      setErrorMessage(
+        "Please enter the complete 6-digit OTP code received on your mobile phone."
+      );
+      return;
+    }
+
+    const formattedPhone = `+91${cleanMobile}`;
+    setIsVerifyingOtp(true);
+    setIsLoading(true);
+    const supabase = createClient();
+
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        phone: formattedPhone,
+        token: cleanOtp,
+        type: "sms",
+      });
+
+      if (error) {
+        if (error.message?.toLowerCase().includes("expired")) {
+          setErrorMessage(
+            "The OTP code has expired. Please click Resend OTP to receive a new code."
+          );
+        } else if (error.message?.toLowerCase().includes("invalid")) {
+          setErrorMessage(
+            "Invalid OTP code. Please enter the correct 6-digit code received on your mobile phone."
+          );
+        } else {
+          setErrorMessage(
+            error.message || "OTP verification failed. Please try again."
+          );
+        }
+        setIsVerifyingOtp(false);
+        setIsLoading(false);
+        return;
+      }
+
+      if (data?.user) {
+        const authUser = data.user;
+        let customerName = authUser.user_metadata?.full_name || "Customer";
+        let userCity = "";
+        let userDistrict = "";
+
+        // Link with customer_profiles table in Supabase
+        try {
+          const { data: prof } = await supabase
+            .from("customer_profiles")
+            .select("*")
+            .eq("id", authUser.id)
+            .maybeSingle();
+
+          if (prof) {
+            customerName = prof.full_name || customerName;
+            userCity = prof.village_city || "";
+            userDistrict = prof.district || "";
+          } else {
+            const { data: profByMobile } = await supabase
+              .from("customer_profiles")
+              .select("*")
+              .eq("mobile", cleanMobile)
+              .maybeSingle();
+
+            if (profByMobile) {
+              customerName = profByMobile.full_name || customerName;
+              userCity = profByMobile.village_city || "";
+              userDistrict = profByMobile.district || "";
+            } else {
+              // Create initial profile in customer_profiles
+              await supabase.from("customer_profiles").insert({
+                id: authUser.id,
+                full_name: customerName,
+                mobile: cleanMobile,
+                village_city: "",
+                district: "",
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              });
+            }
+          }
+        } catch (_) {}
+
+        const sessionPayload = {
+          id: authUser.id,
+          full_name: customerName,
+          mobile: cleanMobile,
+          email: authUser.email || `${cleanMobile}@sardahomeplan.com`,
+          village_city: userCity,
+          district: userDistrict,
+          logged_in_at: new Date().toISOString(),
+        };
+
+        persistCustomerSession(sessionPayload);
+        setIsVerifyingOtp(false);
+        setIsLoading(false);
+        router.push(getTargetUrl());
+        return;
+      }
+
+      setErrorMessage(
+        "Verification succeeded, but session could not be established. Please try again."
+      );
+    } catch (err: any) {
+      setErrorMessage(
+        err?.message || "An unexpected error occurred during OTP verification."
+      );
+    } finally {
+      setIsVerifyingOtp(false);
+      setIsLoading(false);
+    }
+  };
+
   const handleLogin = async (
     event: React.FormEvent<HTMLFormElement>
   ) => {
     event.preventDefault();
     setErrorMessage("");
+
+    const cleanDigits = mobile.trim().replace(/\D/g, "");
+    const cleanMobile = cleanDigits.slice(-10);
 
     // Clear old stale session when logging in fresh
     if (typeof window !== "undefined") {
@@ -120,82 +303,13 @@ export default function CustomerLoginPage() {
       localStorage.removeItem("sarada_customer_logged_in");
     }
 
-    const cleanMobile = mobile.trim().replace(/\D/g, "");
-
     // 1. Mobile OTP Login Flow
     if (loginMethod === "mobile" && mobileAuthType === "otp") {
       if (!otpSent) {
-        handleSendOtp();
+        await handleSendOtp();
         return;
       }
-
-      if (!otpInput.trim()) {
-        setErrorMessage("Please enter the 6-digit OTP code.");
-        return;
-      }
-
-      if (otpInput.trim() !== generatedOtp && otpInput.trim() !== "123456") {
-        setErrorMessage("Invalid OTP code. Please enter the correct 6-digit code or click Resend.");
-        return;
-      }
-
-      setIsLoading(true);
-      const supabase = createClient();
-
-      // Check existing customer profile or request
-      let customerName = "Customer";
-      let userCity = "";
-      let userDistrict = "";
-      const fallbackUuid =
-        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-          ? crypto.randomUUID()
-          : "00000000-0000-4000-8000-" + String(Date.now()).padStart(12, "0");
-      let existingId = fallbackUuid;
-
-      try {
-        const { data: prof } = await supabase
-          .from("customer_profiles")
-          .select("*")
-          .eq("mobile", cleanMobile)
-          .maybeSingle();
-
-        if (prof) {
-          customerName = prof.full_name || customerName;
-          userCity = prof.village_city || "";
-          userDistrict = prof.district || "";
-          existingId = prof.id;
-        } else {
-          const { data: req } = await supabase
-            .from("customer_requests")
-            .select("*")
-            .eq("mobile", cleanMobile)
-            .order("id", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (req) {
-            customerName = req.full_name || customerName;
-            userCity = req.village_city || "";
-            userDistrict = req.district || "";
-            existingId = req.customer_user_id || existingId;
-          }
-        }
-      } catch (_) {}
-
-      // Establish session
-      const sessionPayload = {
-        id: existingId,
-        full_name: customerName,
-        mobile: cleanMobile,
-        email: `${cleanMobile}@sardahomeplan.com`,
-        village_city: userCity,
-        district: userDistrict,
-        logged_in_at: new Date().toISOString(),
-      };
-      persistCustomerSession(sessionPayload);
-
-      setIsLoading(false);
-      router.push(getTargetUrl());
+      await handleVerifyOtp();
       return;
     }
 
@@ -637,89 +751,106 @@ export default function CustomerLoginPage() {
                 {loginMethod === "mobile" && (
                   <div>
                     <label className="mb-1.5 block text-xs font-semibold text-[#17221b]">
-                      Mobile Number
+                      Indian Mobile Number
                     </label>
 
                     <div className="relative">
-                      <Phone
-                        size={17}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-black/40"
-                      />
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-[#063b2c]">
+                        +91
+                      </span>
 
                       <input
                         type="tel"
                         value={mobile}
-                        onChange={(event) =>
-                          setMobile(event.target.value)
-                        }
-                        placeholder="Enter your 10-digit mobile number"
+                        onChange={(event) => setMobile(event.target.value)}
+                        placeholder="e.g. 7905916813"
                         autoComplete="tel"
-                        className="h-[50px] w-full rounded-xl border border-[#dcd7cf] bg-white pl-11 pr-24 text-sm outline-none transition focus:border-[#063b2c] focus:ring-2 focus:ring-[#063b2c]/10"
+                        disabled={otpSent}
+                        className="h-[50px] w-full rounded-xl border border-[#dcd7cf] bg-white pl-12 pr-28 text-sm outline-none transition focus:border-[#063b2c] focus:ring-2 focus:ring-[#063b2c]/10 disabled:bg-[#f3f0e8] disabled:text-black/60"
                       />
 
                       {mobileAuthType === "otp" && !otpSent && (
                         <button
                           type="button"
                           onClick={handleSendOtp}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg bg-[#063b2c] px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#0a4b39]"
+                          disabled={isSendingOtp}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg bg-[#063b2c] px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#0a4b39] disabled:opacity-60"
                         >
-                          Send OTP
+                          {isSendingOtp ? "Sending..." : "Send OTP"}
+                        </button>
+                      )}
+
+                      {mobileAuthType === "otp" && otpSent && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOtpSent(false);
+                            setOtpInput("");
+                            setErrorMessage("");
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg bg-[#eee8dc] px-2.5 py-1 text-xs font-semibold text-[#063b2c] hover:bg-[#e2d9c8]"
+                        >
+                          Change
                         </button>
                       )}
                     </div>
                   </div>
                 )}
 
-                {/* MOBILE OTP INPUT & MESSAGE */}
+                {/* SECURE MOBILE OTP VERIFICATION CARD */}
                 {loginMethod === "mobile" && mobileAuthType === "otp" && otpSent && (
-                  <div className="mt-4 space-y-3">
-                    <div className="rounded-xl border border-emerald-200 bg-emerald-50/90 p-3 text-xs text-emerald-900">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold">📲 Verification Code:</span>
-                        <span className="rounded bg-emerald-600 px-2 py-0.5 font-mono text-sm font-bold text-white tracking-wider">
-                          {generatedOtp}
-                        </span>
+                  <div className="mt-4 space-y-3.5 rounded-2xl border border-[#063b2c]/20 bg-gradient-to-b from-[#f5f8f5] to-[#fbfaf6] p-4 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-[#063b2c]">
+                        <ShieldCheck size={16} />
+                        <span>Verify Your Mobile</span>
                       </div>
-                      <p className="mt-1 text-[11px] text-emerald-700">
-                        {otpMessage}
-                      </p>
-                      {mobile && (
-                        <div className="mt-2 pt-2 border-t border-emerald-200/60 flex items-center justify-between">
-                          <span className="text-[10px] text-emerald-800">Direct WhatsApp par dekhein:</span>
-                          <a
-                            href={`https://wa.me/91${mobile.trim().replace(/\D/g, "")}?text=${encodeURIComponent(`Namaste! Sarda Homeplan me aapka login verification OTP code hai: ${generatedOtp}`)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 rounded bg-[#25D366] px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-[#1ebc59]"
-                          >
-                            WhatsApp Alert 💬
-                          </a>
-                        </div>
-                      )}
+                      <span className="rounded-full bg-[#063b2c]/10 px-2 py-0.5 text-[11px] font-semibold text-[#063b2c]">
+                        SMS Sent
+                      </span>
                     </div>
 
+                    <p className="text-xs text-black/65 leading-relaxed">
+                      We have sent a 6-digit verification OTP code to{" "}
+                      <span className="font-semibold text-[#17221b]">
+                        +91 ******{mobile.trim().replace(/\D/g, "").slice(-4)}
+                      </span>
+                    </p>
+
                     <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <label className="text-xs font-semibold text-[#17221b]">
-                          Enter 6-Digit OTP
-                        </label>
+                      <label className="mb-1.5 block text-xs font-semibold text-[#17221b]">
+                        Enter 6-Digit OTP
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        value={otpInput}
+                        onChange={(e) =>
+                          setOtpInput(e.target.value.replace(/\D/g, ""))
+                        }
+                        placeholder="• • • • • •"
+                        autoFocus
+                        className="h-[52px] w-full rounded-xl border border-[#dcd7cf] bg-white text-center font-mono text-2xl font-bold tracking-[0.4em] text-[#17221b] outline-none transition focus:border-[#063b2c] focus:ring-2 focus:ring-[#063b2c]/10"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs pt-1 border-t border-black/5">
+                      <span className="text-black/50">Didn't receive the SMS?</span>
+                      {resendCountdown > 0 ? (
+                        <span className="font-medium text-black/45">
+                          Resend OTP in {resendCountdown}s
+                        </span>
+                      ) : (
                         <button
                           type="button"
                           onClick={handleSendOtp}
-                          className="text-xs font-medium text-[#063b2c] hover:underline"
+                          disabled={isSendingOtp}
+                          className="font-semibold text-[#063b2c] hover:underline"
                         >
-                          Resend OTP
+                          {isSendingOtp ? "Sending..." : "Resend OTP"}
                         </button>
-                      </div>
-
-                      <input
-                        type="text"
-                        maxLength={6}
-                        value={otpInput}
-                        onChange={(e) => setOtpInput(e.target.value)}
-                        placeholder="e.g. 482910"
-                        className="h-[50px] w-full rounded-xl border border-[#dcd7cf] bg-white px-4 text-center font-mono text-lg font-bold tracking-widest outline-none transition focus:border-[#063b2c] focus:ring-2 focus:ring-[#063b2c]/10"
-                      />
+                      )}
                     </div>
                   </div>
                 )}

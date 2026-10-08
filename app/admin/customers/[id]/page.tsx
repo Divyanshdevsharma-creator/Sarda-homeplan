@@ -2,6 +2,7 @@
 
 import { useEffect, useState, use, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Users,
@@ -43,6 +44,22 @@ export default function CustomerProfileDetailPage({
 }: {
   params: Promise<{ id: string }> | { id: string };
 }) {
+  const router = useRouter();
+
+  useEffect(() => {
+    const hasAdminCookie =
+      document.cookie.includes("sarada_admin_logged_in=true") ||
+      document.cookie.includes("sarda_admin_logged_in=true");
+    const hasAdminStorage =
+      typeof window !== "undefined" &&
+      (localStorage.getItem("sarada_admin_logged_in") === "true" ||
+        localStorage.getItem("sarda_admin_logged_in") === "true");
+
+    if (!hasAdminCookie && !hasAdminStorage) {
+      router.push("/admin/login");
+    }
+  }, [router]);
+
   // Resolve params safely for Next.js 16
   const unwrappedParams =
     typeof (params as any)?.then === "function"

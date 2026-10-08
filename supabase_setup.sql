@@ -24,8 +24,12 @@ INSERT INTO public.admins (email, full_name, role, mobile, password)
 VALUES 
   ('admin@sardahomeplan.com', 'Admin Office', 'Super Admin', '9876543210', 'admin123'),
   ('admin@saradahomeplan.com', 'Admin Office', 'Super Admin', '9876543210', 'admin123'),
-  ('admin', 'Admin Office', 'Super Admin', '9876543210', 'admin123')
-ON CONFLICT (email) DO NOTHING;
+  ('admin', 'Admin Office', 'Super Admin', '9876543210', 'admin123'),
+  ('dkvaid1978@gmail.com', 'Dinesh Kumar Sharma', 'Admin', '9918833851', 'admin123')
+ON CONFLICT (email) DO UPDATE SET
+  full_name = EXCLUDED.full_name,
+  role = EXCLUDED.role,
+  mobile = EXCLUDED.mobile;
 
 -- 2. CUSTOMER PROFILES TABLE
 CREATE TABLE IF NOT EXISTS public.customer_profiles (
@@ -242,3 +246,36 @@ END $$;
 -- Reset sequence IDs
 SELECT setval(pg_get_serial_sequence('public.customer_requests', 'id'), COALESCE(MAX(id), 1) + 1, false) FROM public.customer_requests;
 SELECT setval(pg_get_serial_sequence('public.site_visits', 'id'), COALESCE(MAX(id), 1) + 1, false) FROM public.site_visits;
+
+-- ==============================================================================
+-- 11. SUPABASE STORAGE BUCKET FOR AVATARS / PROFILE PHOTOS
+-- ==============================================================================
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'avatars',
+  'avatars',
+  true,
+  5242880,
+  ARRAY['image/png', 'image/jpeg', 'image/webp', 'image/jpg']
+)
+ON CONFLICT (id) DO UPDATE SET
+  public = true,
+  file_size_limit = 5242880,
+  allowed_mime_types = ARRAY['image/png', 'image/jpeg', 'image/webp', 'image/jpg'];
+
+-- Storage Bucket RLS Policies
+DROP POLICY IF EXISTS "Public avatars select policy" ON storage.objects;
+CREATE POLICY "Public avatars select policy" ON storage.objects
+  FOR SELECT USING (bucket_id = 'avatars');
+
+DROP POLICY IF EXISTS "Authenticated avatars upload policy" ON storage.objects;
+CREATE POLICY "Authenticated avatars upload policy" ON storage.objects
+  FOR INSERT WITH CHECK (bucket_id = 'avatars');
+
+DROP POLICY IF EXISTS "Authenticated avatars update policy" ON storage.objects;
+CREATE POLICY "Authenticated avatars update policy" ON storage.objects
+  FOR UPDATE USING (bucket_id = 'avatars');
+
+DROP POLICY IF EXISTS "Authenticated avatars delete policy" ON storage.objects;
+CREATE POLICY "Authenticated avatars delete policy" ON storage.objects
+  FOR DELETE USING (bucket_id = 'avatars');

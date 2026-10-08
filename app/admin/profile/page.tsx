@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ShieldCheck,
@@ -23,6 +24,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 
 export default function AdminProfilePage() {
+  const router = useRouter();
   const [admin, setAdmin] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -48,6 +50,19 @@ export default function AdminProfilePage() {
   useEffect(() => {
     async function loadAdminProfile() {
       setLoading(true);
+      const hasAdminCookie =
+        document.cookie.includes("sarada_admin_logged_in=true") ||
+        document.cookie.includes("sarda_admin_logged_in=true");
+      const hasAdminStorage =
+        typeof window !== "undefined" &&
+        (localStorage.getItem("sarada_admin_logged_in") === "true" ||
+          localStorage.getItem("sarda_admin_logged_in") === "true");
+
+      if (!hasAdminCookie && !hasAdminStorage) {
+        router.push("/admin/login");
+        return;
+      }
+
       try {
         let adminEmail = "";
         if (typeof window !== "undefined") {

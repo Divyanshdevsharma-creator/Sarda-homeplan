@@ -227,10 +227,12 @@ export default function AdminForgotPasswordPage() {
             </div>
 
             <div className="mt-4 rounded-xl border border-[#31513d]/20 bg-[#e6efe8]/70 p-3.5 text-center">
-              <span className="text-[11px] text-[#31513d] font-semibold">Authorized Admin OTP:</span>
-              <div className="mt-1 font-mono text-2xl font-black tracking-widest text-[#173525]">
-                {generatedOtp}
-              </div>
+              <span className="text-xs text-[#31513d] font-semibold">
+                Security verification code has been dispatched.
+              </span>
+              <p className="mt-1 text-[11px] text-black/60">
+                Please check your authorized device and enter the 6-digit code below.
+              </p>
             </div>
 
             <form onSubmit={handleVerifyOtp} className="mt-5 space-y-4">

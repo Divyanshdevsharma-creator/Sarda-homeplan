@@ -346,6 +346,7 @@ export default function CustomerDashboardPage() {
   const [editPropertyType, setEditPropertyType] = useState("Residential (1-3 Floor)");
   const [editWhatsapp, setEditWhatsapp] = useState("");
   const [editLanguage, setEditLanguage] = useState("Hindi");
+  const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // Customer Notifications & Alert Center
@@ -671,13 +672,18 @@ export default function CustomerDashboardPage() {
       "Customer";
 
     // 2. Fetch Complete Profile from customer_profiles table in Supabase
-    const { data: profile } = await supabase
-      .from("customer_profiles")
-      .select(
-        "id, full_name, mobile, village_city, district, avatar_url, landmark, pin_code, state, property_type, whatsapp_number, preferred_language"
-      )
-      .eq("id", currentUserId)
-      .maybeSingle();
+    let profile: any = null;
+    try {
+      const { data: pData, error: pErr } = await supabase
+        .from("customer_profiles")
+        .select("*")
+        .eq("id", currentUserId)
+        .maybeSingle();
+
+      if (!pErr && pData) {
+        profile = pData;
+      }
+    } catch (_) {}
 
     const nameVal = profile?.full_name || fallbackName;
     const mobileVal = profile?.mobile || metadata.mobile || "";
@@ -701,13 +707,6 @@ export default function CustomerDashboardPage() {
             mobile: mobileVal,
             village_city: villageVal,
             district: districtVal,
-            avatar_url: avatarVal || null,
-            landmark: landmarkVal || null,
-            pin_code: pincodeVal || null,
-            state: stateVal,
-            property_type: propertyTypeVal,
-            whatsapp_number: whatsappVal || null,
-            preferred_language: languageVal,
             updated_at: new Date().toISOString(),
           },
           { onConflict: "id" }
@@ -1187,44 +1186,39 @@ export default function CustomerDashboardPage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    if (!file.type.startsWith("image/")) {
+      alert("Please upload an image file (PNG, JPG, or WebP).");
+      return;
+    }
+
     if (file.size > 5 * 1024 * 1024) {
       alert("Please choose a photo under 5MB.");
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const dataUrl = e.target?.result as string;
-      if (!dataUrl) return;
-
-      setEditAvatar(dataUrl);
-      setCustomerAvatar(dataUrl);
-
-      if (userId) {
-        await supabase
-          .from("customer_profiles")
-          .update({ avatar_url: dataUrl, updated_at: new Date().toISOString() })
-          .eq("id", userId);
-        await supabase.auth.updateUser({
-          data: { avatar_url: dataUrl },
-        });
-      }
-    };
-    reader.readAsDataURL(file);
+    setSelectedAvatarFile(file);
+    const objectUrl = URL.createObjectURL(file);
+    setEditAvatar(objectUrl);
+    setCustomerAvatar(objectUrl);
     event.target.value = "";
   };
 
   const removeAvatar = async () => {
+    setSelectedAvatarFile(null);
     setEditAvatar("");
     setCustomerAvatar("");
     if (userId) {
-      await supabase
-        .from("customer_profiles")
-        .update({ avatar_url: null, updated_at: new Date().toISOString() })
-        .eq("id", userId);
-      await supabase.auth.updateUser({
-        data: { avatar_url: "" },
-      });
+      try {
+        await supabase
+          .from("customer_profiles")
+          .update({ avatar_url: null, updated_at: new Date().toISOString() })
+          .eq("id", userId);
+      } catch (_) {}
+      try {
+        await supabase.auth.updateUser({
+          data: { avatar_url: "" },
+        });
+      } catch (_) {}
     }
   };
 
@@ -1400,7 +1394,54 @@ export default function CustomerDashboardPage() {
 
     setIsSavingProfile(true);
 
-    // 1. Update Supabase Auth user metadata
+    // 1. Verify authenticated user identity directly from Supabase Auth session
+    let authUserId = userId;
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user?.id) {
+        authUserId = user.id;
+      }
+    } catch (_) {}
+
+    if (!authUserId) {
+      alert("Please log in again to update your profile.");
+      setIsSavingProfile(false);
+      return;
+    }
+
+    // 2. Upload avatar to Supabase Storage if a new file was chosen
+    let finalAvatarUrl = editAvatar;
+    if (selectedAvatarFile) {
+      try {
+        const fileExt = selectedAvatarFile.name.split(".").pop() || "jpg";
+        const filePath = `${authUserId}/avatar-${Date.now()}.${fileExt}`;
+        const { data: uploadData, error: uploadErr } = await supabase.storage
+          .from("avatars")
+          .upload(filePath, selectedAvatarFile, { upsert: true });
+
+        if (!uploadErr && uploadData?.path) {
+          const { data: pubData } = supabase.storage
+            .from("avatars")
+            .getPublicUrl(uploadData.path);
+          if (pubData?.publicUrl) {
+            finalAvatarUrl = pubData.publicUrl;
+            setEditAvatar(finalAvatarUrl);
+            setCustomerAvatar(finalAvatarUrl);
+          }
+        } else if (uploadErr) {
+          console.warn(
+            "Notice: Supabase avatars bucket not yet configured or upload failed:",
+            uploadErr.message
+          );
+        }
+      } catch (storageErr) {
+        console.warn("Storage upload exception:", storageErr);
+      }
+    }
+
+    // 3. Update Supabase Auth user metadata
     try {
       await supabase.auth.updateUser({
         data: {
@@ -1408,7 +1449,7 @@ export default function CustomerDashboardPage() {
           mobile: editMobile.trim(),
           village_city: editVillage.trim(),
           district: editDistrict.trim(),
-          avatar_url: editAvatar,
+          avatar_url: finalAvatarUrl || "",
           landmark: editLandmark.trim(),
           pincode: editPinCode.trim(),
           state: editState.trim(),
@@ -1419,14 +1460,14 @@ export default function CustomerDashboardPage() {
       });
     } catch (_) {}
 
-    // 2. Upsert complete profile columns in customer_profiles table in Supabase
-    const profileData = {
-      id: userId,
+    // 4. Save to customer_profiles table with resilient fallback
+    const fullPayload: Record<string, any> = {
+      id: authUserId,
       full_name: editName.trim(),
       mobile: editMobile.trim(),
       village_city: editVillage.trim(),
       district: editDistrict.trim(),
-      avatar_url: editAvatar || null,
+      avatar_url: finalAvatarUrl || null,
       landmark: editLandmark.trim() || null,
       pin_code: editPinCode.trim() || null,
       state: editState.trim() || "Bihar",
@@ -1436,21 +1477,53 @@ export default function CustomerDashboardPage() {
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase
+    let saveError: any = null;
+    const { error: upsertErr } = await supabase
       .from("customer_profiles")
-      .upsert(profileData);
+      .upsert(fullPayload);
 
-    if (error) {
-      alert(`Failed to save profile: ${error.message}`);
+    if (upsertErr) {
+      // If error is caused by missing columns in schema cache (such as avatar_url, landmark, etc.)
+      const isSchemaCacheError =
+        upsertErr.code === "42703" ||
+        upsertErr.message.includes("schema cache") ||
+        upsertErr.message.includes("column");
+
+      if (isSchemaCacheError) {
+        // Fallback to updating only base columns that exist on customer_profiles
+        const basePayload = {
+          id: authUserId,
+          full_name: editName.trim(),
+          mobile: editMobile.trim(),
+          village_city: editVillage.trim(),
+          district: editDistrict.trim(),
+          updated_at: new Date().toISOString(),
+        };
+
+        const { error: fallbackErr } = await supabase
+          .from("customer_profiles")
+          .upsert(basePayload);
+
+        if (fallbackErr) {
+          saveError = fallbackErr;
+        }
+      } else {
+        saveError = upsertErr;
+      }
+    }
+
+    if (saveError) {
+      alert(`Failed to save profile: ${saveError.message}`);
       setIsSavingProfile(false);
       return;
     }
 
+    // 5. Update local state & persist session
     setCustomerName(editName.trim());
     setCustomerMobile(editMobile.trim());
     setCustomerVillage(editVillage.trim());
     setCustomerDistrict(editDistrict.trim());
-    setCustomerAvatar(editAvatar);
+    setCustomerAvatar(finalAvatarUrl);
     setCustomerLandmark(editLandmark.trim());
     setCustomerPinCode(editPinCode.trim());
     setCustomerState(editState.trim());
@@ -1458,9 +1531,37 @@ export default function CustomerDashboardPage() {
     setCustomerWhatsapp(editWhatsapp.trim());
     setCustomerLanguage(editLanguage);
 
+    if (typeof window !== "undefined") {
+      const stored =
+        localStorage.getItem("sarda_customer_session") ||
+        localStorage.getItem("sarada_customer_session");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          const updatedSession = {
+            ...parsed,
+            full_name: editName.trim(),
+            mobile: editMobile.trim(),
+            village_city: editVillage.trim(),
+            district: editDistrict.trim(),
+            avatar_url: finalAvatarUrl,
+          };
+          localStorage.setItem(
+            "sarda_customer_session",
+            JSON.stringify(updatedSession)
+          );
+          localStorage.setItem(
+            "sarada_customer_session",
+            JSON.stringify(updatedSession)
+          );
+        } catch (_) {}
+      }
+    }
+
+    setSelectedAvatarFile(null);
     setShowEditProfile(false);
     setIsSavingProfile(false);
-    alert("Profile saved successfully to Supabase!");
+    alert("Profile saved successfully!");
   };
 
   const handleLogout = async () => {

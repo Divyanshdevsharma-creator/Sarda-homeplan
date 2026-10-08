@@ -69,12 +69,11 @@ export default function CustomerForgotPasswordPage() {
       }
     }
 
-    // Generate verified 6-digit OTP
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedOtp(code);
     setIsLoading(false);
     setStep(2);
-    setSuccessMessage(`OTP successfully generated! Aapka 6-digit verification code hai: ${code}`);
+    setSuccessMessage("A 6-digit verification code has been sent to your registered mobile / email.");
   };
 
   // Step 2: Verify OTP

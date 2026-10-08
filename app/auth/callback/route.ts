@@ -51,7 +51,7 @@ export async function GET(request: Request) {
             user.email?.split("@")[0] ||
             "Customer";
 
-          await supabase.from("customer_profiles").insert({
+          const fullPayload = {
             id: user.id,
             full_name: userName,
             mobile: user.user_metadata?.mobile || user.phone || null,
@@ -66,7 +66,24 @@ export async function GET(request: Request) {
             preferred_language: "Hindi",
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-          });
+          };
+
+          const { error: insErr } = await supabase
+            .from("customer_profiles")
+            .insert(fullPayload);
+
+          if (insErr) {
+            // Fallback to base columns that exist on customer_profiles
+            await supabase.from("customer_profiles").insert({
+              id: user.id,
+              full_name: userName,
+              mobile: user.user_metadata?.mobile || user.phone || null,
+              village_city: user.user_metadata?.village_city || null,
+              district: user.user_metadata?.district || null,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+          }
         }
       } catch (profErr) {
         console.warn("OAuth customer profile sync notice:", profErr);

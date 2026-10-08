@@ -79,7 +79,7 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // 3. Admin Routes
+  // 3. Admin Routes Protection
   const isAdminRoute =
     pathname === "/admin" || pathname.startsWith("/admin/");
   const isAdminLoginPage =
@@ -89,7 +89,27 @@ export async function updateSession(request: NextRequest) {
     request.cookies.get("sarada_admin_logged_in")?.value === "true" ||
     request.cookies.get("sarda_admin_logged_in")?.value === "true";
 
-  const isAdminLoggedIn = Boolean(hasAdminCookie || (authUser && authUser.email?.includes("admin")));
+  // Check known admin identifiers or auth metadata
+  const isAdminAuthUser = Boolean(
+    authUser && (
+      authUser.email === "admin@saradahomeplan.com" ||
+      authUser.email === "admin@sardahomeplan.com" ||
+      authUser.email === "dkvaid1978@gmail.com" ||
+      authUser.user_metadata?.role === "Super Admin" ||
+      authUser.user_metadata?.role === "Admin" ||
+      authUser.user_metadata?.is_admin === true
+    )
+  );
+
+  const isAdminLoggedIn = Boolean(hasAdminCookie || isAdminAuthUser);
+
+  // If user is logged in as customer and NOT an admin, forbid entry to admin
+  if (isAdminRoute && hasCustomerCookie && !isAdminLoggedIn) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/customer/dashboard";
+    url.searchParams.set("error", "unauthorized_admin_access_denied");
+    return NextResponse.redirect(url);
+  }
 
   if (isAdminRoute && !isAdminLoginPage && !isAdminLoggedIn) {
     const url = request.nextUrl.clone();
