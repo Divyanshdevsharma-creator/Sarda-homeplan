@@ -53,6 +53,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "../../lib/supabase-client";
 import { useAdminSidebarCounts } from "@/lib/hooks/useAdminSidebarCounts";
 import CustomerSelector, { CustomerProfileItem } from "@/components/admin/CustomerSelector";
+import SendEmailModal, { EmailCustomerTarget } from "@/components/admin/SendEmailModal";
 import {
   generateAdminNotifications,
   AdminNotificationItem,
@@ -286,6 +287,15 @@ export default function AdminDashboard() {
   const [adminActionError, setAdminActionError] = useState("");
   const [adminActionSuccess, setAdminActionSuccess] = useState("");
   const [isSubmittingAdmin, setIsSubmittingAdmin] = useState(false);
+
+  // Direct Customer Email Modal State
+  const [emailModalCustomer, setEmailModalCustomer] = useState<EmailCustomerTarget | null>(null);
+
+  const handleAdminCustomerEmailSaved = (customerId: string, email: string) => {
+    setCustomerProfiles((prev) =>
+      prev.map((c) => (String(c.id) === String(customerId) ? { ...c, email } : c))
+    );
+  };
 
   // Customer Selector Modal State (FIX #2)
   const [customerSelectorConfig, setCustomerSelectorConfig] = useState<{
@@ -1703,11 +1713,16 @@ export default function AdminDashboard() {
       const cleanMobile = cp.mobile ? cp.mobile.replace(/\D/g, "").slice(-10) : "";
       const key = cleanMobile || cp.id || cp.full_name;
       if (key) {
+        const storedEmail =
+          typeof window !== "undefined"
+            ? localStorage.getItem(`sarda_cust_email_${cp.id}`) ||
+              (cleanMobile ? localStorage.getItem(`sarda_cust_email_${cleanMobile}`) : null)
+            : null;
         map.set(key, {
           id: cp.id,
           name: cp.full_name || "Registered Customer",
           mobile: cp.mobile || "",
-          email: cp.email || null,
+          email: cp.email || storedEmail || null,
           village: cp.village_city || "",
           district: cp.district || "",
           projectsCount: 0,
@@ -1746,11 +1761,16 @@ export default function AdminDashboard() {
         }
       } else {
         const key = cleanMobile || r.customer_user_id || `req-${r.id}`;
+        const storedReqEmail =
+          typeof window !== "undefined"
+            ? (cleanMobile ? localStorage.getItem(`sarda_cust_email_${cleanMobile}`) : null) ||
+              (r.customer_user_id ? localStorage.getItem(`sarda_cust_email_${r.customer_user_id}`) : null)
+            : null;
         map.set(key, {
           id: r.customer_user_id || `req-${r.id}`,
           name: r.full_name,
           mobile: r.mobile,
-          email: r.email || null,
+          email: r.email || storedReqEmail || null,
           village: r.village_city,
           district: r.district,
           projectsCount: 0,
@@ -3462,27 +3482,29 @@ export default function AdminDashboard() {
                               </button>
                             )}
 
-                            {/* Email */}
-                            {cust.email ? (
-                              <a
-                                href={`mailto:${cust.email}`}
-                                className="inline-flex items-center justify-center gap-1 rounded-xl border border-[#063b2c]/30 bg-[#f3f8f5] py-1.5 text-[11px] font-bold text-[#063b2c] hover:bg-[#063b2c] hover:text-[#f4cf72] transition shadow-xs"
-                                title={`Email ${cust.email}`}
-                              >
-                                <Mail size={13} />
-                                <span>Email</span>
-                              </a>
-                            ) : (
-                              <button
-                                type="button"
-                                disabled
-                                className="inline-flex items-center justify-center gap-1 rounded-xl border border-[#ded9cf] bg-[#f8f5ee] py-1.5 text-[11px] font-medium text-black/35 cursor-not-allowed"
-                                title="No email available"
-                              >
-                                <Mail size={13} />
-                                <span>Email</span>
-                              </button>
-                            )}
+                            {/* Email — Direct Mail to Customer */}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setEmailModalCustomer({
+                                  id: String(cust.id),
+                                  full_name: cust.name,
+                                  mobile: cust.mobile,
+                                  email: cust.email,
+                                  village_city: cust.village,
+                                  district: cust.district,
+                                })
+                              }
+                              className="inline-flex items-center justify-center gap-1 rounded-xl border border-[#063b2c]/35 bg-[#f3f8f5] py-1.5 text-[11px] font-bold text-[#063b2c] hover:bg-[#063b2c] hover:text-[#f4cf72] transition shadow-xs cursor-pointer"
+                              title={
+                                cust.email
+                                  ? `Direct Email to ${cust.name || "Customer"} (${cust.email})`
+                                  : `Direct Email to ${cust.name || "Customer"}`
+                              }
+                            >
+                              <Mail size={13} />
+                              <span>Email</span>
+                            </button>
 
                             {/* Call */}
                             {cust.mobile ? (
@@ -5990,6 +6012,14 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+
+      {/* DIRECT CUSTOMER EMAIL MODAL */}
+      <SendEmailModal
+        isOpen={Boolean(emailModalCustomer)}
+        onClose={() => setEmailModalCustomer(null)}
+        customer={emailModalCustomer}
+        onEmailSaved={handleAdminCustomerEmailSaved}
+      />
     </div>
   );
 }

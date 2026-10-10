@@ -31,6 +31,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import SendEmailModal from "@/components/admin/SendEmailModal";
 
 export interface CustomerDirectoryItem {
   id: string;
@@ -63,6 +64,13 @@ export default function AdminCustomersDirectoryPage() {
   const [districtFilter, setDistrictFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
+  const [emailModalCustomer, setEmailModalCustomer] = useState<CustomerDirectoryItem | null>(null);
+
+  const handleEmailSaved = (customerId: string, email: string) => {
+    setCustomers((prev) =>
+      prev.map((c) => (c.id === customerId ? { ...c, email } : c))
+    );
+  };
 
   const supabase = createClient();
 
@@ -174,11 +182,18 @@ export default function AdminCustomersDirectoryPage() {
           ? Date.now() - new Date(prof.created_at).getTime() < 30 * 24 * 60 * 60 * 1000
           : false;
 
+        const storedEmail =
+          typeof window !== "undefined"
+            ? localStorage.getItem(`sarda_cust_email_${prof.id}`) ||
+              (cleanMobile ? localStorage.getItem(`sarda_cust_email_${cleanMobile}`) : null)
+            : null;
+        const resolvedEmail = prof.email || storedEmail || null;
+
         return {
           id: prof.id,
           full_name: prof.full_name || "Registered Customer",
           mobile: prof.mobile,
-          email: prof.email || null,
+          email: resolvedEmail,
           village_city: prof.village_city,
           district: prof.district,
           avatar_url: prof.avatar_url,
@@ -210,11 +225,18 @@ export default function AdminCustomersDirectoryPage() {
           const matchedVisits = visitList.filter((v) => v.request_id === r.id);
           const matchedPays = payList.filter((py) => py.request_id === r.id);
 
+          const storedGuestEmail =
+            typeof window !== "undefined"
+              ? (cleanR ? localStorage.getItem(`sarda_cust_email_${cleanR}`) : null) ||
+                (r.customer_user_id ? localStorage.getItem(`sarda_cust_email_${r.customer_user_id}`) : null)
+              : null;
+          const resolvedGuestEmail = (r as any).email || storedGuestEmail || null;
+
           enrichedProfiles.push({
             id: r.customer_user_id || `req-${r.id}`,
             full_name: r.full_name,
             mobile: r.mobile,
-            email: null,
+            email: resolvedGuestEmail,
             village_city: r.village_city,
             district: r.district,
             created_at: r.created_at,
@@ -657,27 +679,20 @@ export default function AdminCustomersDirectoryPage() {
                           </button>
                         )}
 
-                        {/* Email */}
-                        {cust.email ? (
-                          <a
-                            href={`mailto:${cust.email}`}
-                            className="inline-flex items-center justify-center gap-1 rounded-xl border border-[#063b2c]/30 bg-[#f3f8f5] py-1.5 text-[11px] font-bold text-[#063b2c] hover:bg-[#063b2c] hover:text-[#f4cf72] transition shadow-xs"
-                            title={`Email ${cust.email}`}
-                          >
-                            <Mail size={13} />
-                            <span>Email</span>
-                          </a>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled
-                            className="inline-flex items-center justify-center gap-1 rounded-xl border border-[#ded9cf] bg-[#f8f5ee] py-1.5 text-[11px] font-medium text-black/35 cursor-not-allowed"
-                            title="No email available"
-                          >
-                            <Mail size={13} />
-                            <span>Email</span>
-                          </button>
-                        )}
+                        {/* Email — Direct Mail to Customer */}
+                        <button
+                          type="button"
+                          onClick={() => setEmailModalCustomer(cust)}
+                          className="inline-flex items-center justify-center gap-1 rounded-xl border border-[#063b2c]/35 bg-[#f3f8f5] py-1.5 text-[11px] font-bold text-[#063b2c] hover:bg-[#063b2c] hover:text-[#f4cf72] transition shadow-xs cursor-pointer"
+                          title={
+                            cust.email
+                              ? `Direct Email to ${cust.full_name || "Customer"} (${cust.email})`
+                              : `Direct Email to ${cust.full_name || "Customer"}`
+                          }
+                        >
+                          <Mail size={13} />
+                          <span>Email</span>
+                        </button>
 
                         {/* Call */}
                         {cust.mobile ? (
@@ -745,7 +760,27 @@ export default function AdminCustomersDirectoryPage() {
 
                         <td className="px-5 py-4">
                           <p className="font-semibold text-[#17221b]">{cust.mobile || "-"}</p>
-                          {cust.email && <p className="text-[11px] text-black/50">{cust.email}</p>}
+                          {cust.email ? (
+                            <button
+                              type="button"
+                              onClick={() => setEmailModalCustomer(cust)}
+                              className="mt-0.5 text-[11px] text-[#063b2c] font-semibold hover:underline flex items-center gap-1 cursor-pointer"
+                              title={`Direct Email to ${cust.full_name || "Customer"}`}
+                            >
+                              <Mail size={11} />
+                              <span>{cust.email}</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setEmailModalCustomer(cust)}
+                              className="mt-0.5 text-[10px] text-[#0c7a62] font-semibold hover:underline flex items-center gap-1 cursor-pointer"
+                              title="Send Email to customer"
+                            >
+                              <Mail size={11} />
+                              <span>+ Send Email</span>
+                            </button>
+                          )}
                         </td>
 
                         <td className="px-5 py-4 text-black/70">
@@ -788,6 +823,14 @@ export default function AdminCustomersDirectoryPage() {
           </>
         )}
       </main>
+
+      {/* DIRECT EMAIL MODAL */}
+      <SendEmailModal
+        isOpen={Boolean(emailModalCustomer)}
+        onClose={() => setEmailModalCustomer(null)}
+        customer={emailModalCustomer}
+        onEmailSaved={handleEmailSaved}
+      />
     </div>
   );
 }

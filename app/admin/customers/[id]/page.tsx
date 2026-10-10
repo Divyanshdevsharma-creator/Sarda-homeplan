@@ -39,6 +39,7 @@ import {
   ThumbsUp,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import SendEmailModal from "@/components/admin/SendEmailModal";
 
 export default function CustomerProfileDetailPage({
   params,
@@ -88,6 +89,8 @@ export default function CustomerProfileDetailPage({
   >("overview");
 
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [customerEmail, setCustomerEmail] = useState<string | null>(null);
 
   // Interactive Reschedule Modal State
   const [rescheduleModal, setRescheduleModal] = useState<{
@@ -150,6 +153,22 @@ export default function CustomerProfileDetailPage({
           state: "Bihar",
           created_at: topReq.created_at,
         };
+      }
+
+      // Resolve persistent email from localStorage if not stored in DB
+      const storedEmail =
+        typeof window !== "undefined"
+          ? localStorage.getItem(`sarda_cust_email_${customerId}`) ||
+            (currentProfile?.mobile
+              ? localStorage.getItem(`sarda_cust_email_${currentProfile.mobile.replace(/\D/g, "").slice(-10)}`)
+              : null)
+          : null;
+
+      if (currentProfile) {
+        if (!currentProfile.email && storedEmail) {
+          currentProfile.email = storedEmail;
+        }
+        setCustomerEmail(currentProfile.email || storedEmail || null);
       }
       setProfile(currentProfile);
 
@@ -665,11 +684,26 @@ export default function CustomerProfileDetailPage({
                         <Phone size={13} className="text-[#063b2c]" />
                         <span>{profile.mobile || "No mobile"}</span>
                       </div>
-                      {profile.email && (
-                        <div className="flex items-center gap-1">
+                      {profile.email ? (
+                        <button
+                          type="button"
+                          onClick={() => setEmailModalOpen(true)}
+                          className="flex items-center gap-1 font-medium text-[#063b2c] hover:underline"
+                          title="Click to send email to customer"
+                        >
                           <Mail size={13} className="text-[#063b2c]" />
                           <span>{profile.email}</span>
-                        </div>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setEmailModalOpen(true)}
+                          className="flex items-center gap-1 text-black/50 hover:text-[#063b2c] transition"
+                          title="Click to add email and message customer"
+                        >
+                          <Mail size={13} />
+                          <span className="italic underline underline-offset-2">Add email</span>
+                        </button>
                       )}
                       <div className="flex items-center gap-1">
                         <MapPin size={13} className="text-[#063b2c]" />
@@ -687,6 +721,16 @@ export default function CustomerProfileDetailPage({
 
                 {/* Direct Action Buttons */}
                 <div className="flex flex-wrap items-center gap-2 pt-2 md:pt-0">
+                  <button
+                    type="button"
+                    onClick={() => setEmailModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-[#063b2c] px-4 py-2.5 text-xs font-bold text-[#f4cf72] shadow-sm transition hover:bg-[#0a4d38]"
+                    title="Send direct email to customer"
+                  >
+                    <Mail size={15} />
+                    <span>Send Email</span>
+                  </button>
+
                   {profile.mobile && (
                     <a
                       href={`https://wa.me/91${profile.mobile.replace(/\D/g, "").slice(-10)}?text=${encodeURIComponent(
@@ -1531,6 +1575,28 @@ export default function CustomerProfileDetailPage({
           </div>
         </div>
       )}
+
+      {/* DIRECT CUSTOMER EMAIL DISPATCH MODAL */}
+      <SendEmailModal
+        isOpen={emailModalOpen}
+        onClose={() => setEmailModalOpen(false)}
+        customer={
+          profile
+            ? {
+                id: profile.id || customerId,
+                full_name: profile.full_name || "Customer",
+                mobile: profile.mobile || "",
+                email: profile.email || customerEmail || "",
+                village_city: profile.village_city || "",
+                district: profile.district || "",
+              }
+            : null
+        }
+        onEmailSaved={(savedEmail) => {
+          setCustomerEmail(savedEmail);
+          setProfile((prev: any) => (prev ? { ...prev, email: savedEmail } : prev));
+        }}
+      />
     </div>
   );
 }
