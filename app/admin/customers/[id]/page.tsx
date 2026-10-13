@@ -959,25 +959,33 @@ export default function CustomerProfileDetailPage({
                             </div>
 
                             {/* Uploaded Rough Sketch / Attachment (Section 7) */}
-                            {req.attachment_url && (
+                            {(req.attachment_url || req.requirements?.includes("[ATTACHMENT_URL:")) && (
                               <div className="pt-1">
                                 <span className="text-black/50 text-[11px] font-semibold block mb-1">
                                   Uploaded Rough Sketch / Site Document:
                                 </span>
-                                <div
-                                  onClick={() => setPreviewImage(req.attachment_url)}
-                                  className="relative inline-block cursor-pointer overflow-hidden rounded-xl border border-[#ded9cf] group"
-                                >
-                                  <img
-                                    src={req.attachment_url}
-                                    alt="Uploaded Sketch"
-                                    className="h-28 w-44 object-cover transition group-hover:scale-105"
-                                  />
-                                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[11px] font-bold gap-1">
-                                    <Eye size={14} />
-                                    <span>View Sketch</span>
-                                  </div>
-                                </div>
+                                {(() => {
+                                  const sketchUrl =
+                                    req.attachment_url ||
+                                    req.requirements?.match(/\[ATTACHMENT_URL:([\s\S]*?)\]/)?.[1];
+                                  if (!sketchUrl) return null;
+                                  return (
+                                    <div
+                                      onClick={() => setPreviewImage(sketchUrl)}
+                                      className="relative inline-block cursor-pointer overflow-hidden rounded-xl border border-[#ded9cf] group bg-[#faf8f4]"
+                                    >
+                                      <img
+                                        src={sketchUrl}
+                                        alt="Uploaded Sketch"
+                                        className="h-28 w-44 object-contain transition group-hover:scale-105"
+                                      />
+                                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[11px] font-bold gap-1.5">
+                                        <Eye size={14} />
+                                        <span>View Full Sketch</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
                               </div>
                             )}
                           </div>

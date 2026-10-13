@@ -44,6 +44,8 @@ import {
   UserPlus,
   CalendarClock,
   Mail,
+  Download,
+  Maximize2,
 } from "lucide-react";
 
 import { useEffect, useState, useMemo, type ComponentType } from "react";
@@ -1378,11 +1380,11 @@ export default function AdminDashboard() {
     }
   };
 
-  // Image Compressor for Fast Uploads
+  // Image Compressor for Fast Uploads (High-fidelity for architectural blueprints & drawings)
   const compressImage = (
     dataUrl: string,
-    maxDimension = 1400,
-    quality = 0.85
+    maxDimension = 2400,
+    quality = 0.92
   ): Promise<string> => {
     return new Promise((resolve) => {
       const img = new window.Image();
@@ -2009,10 +2011,11 @@ export default function AdminDashboard() {
       <aside
         className={`
           fixed inset-y-0 left-0 z-40
-          flex h-screen w-[280px] flex-col
+          flex h-screen h-[100dvh] w-[280px] flex-col
           bg-[#073b2b] text-white
           transition-transform duration-300
           lg:translate-x-0
+          overflow-y-auto
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
         `}
       >
@@ -2047,6 +2050,39 @@ export default function AdminDashboard() {
               </p>
             </div>
           </button>
+        </div>
+
+        {/* ADMIN PROFILE CARD IN SIDEBAR (VISIBLE ON BOTH MOBILE AND LAPTOP) */}
+        <div className="shrink-0 px-4 py-3 border-b border-white/10 bg-[#063325]">
+          <Link
+            href="/admin/profile"
+            onClick={() => setSidebarOpen(false)}
+            className="flex items-center gap-3 group transition"
+            title="Admin Profile & Settings"
+          >
+            <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full border-2 border-[#d7b56d] shadow-md group-hover:scale-105 transition bg-[#073829]">
+              <Image
+                src={adminAvatar || "/dinesh-sharma.jpg"}
+                alt={adminProfile?.full_name || "Dinesh Kumar Sharma"}
+                width={88}
+                height={88}
+                priority
+                className="h-full w-full object-cover"
+                unoptimized
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-serif text-xs font-bold text-white group-hover:text-[#f4cf72] transition truncate leading-tight">
+                {adminProfile?.full_name || "Dinesh Kumar Sharma"}
+              </p>
+              <p className="text-[10px] font-medium text-[#f4cf72] truncate mt-0.5">
+                {adminProfile?.role || "House Planning Consultant"}
+              </p>
+              <span className="inline-block mt-0.5 text-[9px] text-white/60">
+                Pratapgarh / Prayagraj
+              </span>
+            </div>
+          </Link>
         </div>
 
         {/* NAVIGATION LINKS (COMPACT, FITS PERFECTLY WITHOUT CUTTING OFF) */}
@@ -2129,8 +2165,8 @@ export default function AdminDashboard() {
           />
         </nav>
 
-        {/* SIDEBAR FOOTER MOTIF (PINNED BOTTOM) */}
-        <div className="shrink-0 p-3 border-t border-white/10 space-y-2.5">
+        {/* SIDEBAR FOOTER MOTIF (PINNED BOTTOM / SCROLLABLE ON MOBILE) */}
+        <div className="shrink-0 p-3 border-t border-white/10 space-y-2.5 mt-auto">
           {/* ARCHITECTURAL HOUSE MOTIF CARD */}
           <div className="overflow-hidden rounded-xl border border-white/15 bg-[#094331] shadow-sm transition hover:border-[#f4cf72]/40 group">
             <div className="relative h-20 w-full overflow-hidden bg-[#073829]">
@@ -2175,11 +2211,12 @@ export default function AdminDashboard() {
       ========================================================= */}
       <div className="flex min-h-screen w-full flex-col lg:pl-[280px]">
         {/* HEADER (PINNED STICKY AT TOP) */}
-        <header className="sticky top-0 z-30 flex h-[72px] shrink-0 items-center gap-3 border-b border-[#ded8cd] bg-[#f8f5ed]/95 px-5 backdrop-blur-md">
+        <header className="sticky top-0 z-30 flex h-[72px] shrink-0 items-center gap-2 sm:gap-3 border-b border-[#ded8cd] bg-[#f8f5ed]/95 px-3 sm:px-5 backdrop-blur-md">
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
-            className="rounded-xl p-2 text-[#17221b] hover:bg-black/5 lg:hidden"
+            className="rounded-xl p-2 text-[#17221b] hover:bg-black/5 lg:hidden shrink-0"
+            aria-label="Open Sidebar Menu"
           >
             <Menu size={22} />
           </button>
@@ -2191,7 +2228,7 @@ export default function AdminDashboard() {
               setActiveTab("overview");
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}
-            className="flex items-center gap-1.5 lg:hidden cursor-pointer"
+            className="flex items-center gap-1.5 lg:hidden cursor-pointer shrink-0"
             aria-label="Admin Dashboard Overview"
           >
             <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full shadow-sm border border-[#d7b56d]/50 bg-white/5">
@@ -2206,40 +2243,40 @@ export default function AdminDashboard() {
             </div>
           </button>
 
-          {/* LIVE SEARCH BAR */}
-          <div className="relative max-w-[560px] flex-1">
+          {/* LIVE SEARCH BAR (min-w-0 prevents mobile overflow) */}
+          <div className="relative min-w-0 max-w-[560px] flex-1">
             <Search
               size={18}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-black/40"
+              className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-black/40"
             />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search customers, phones, locations or plot sizes..."
-              className="h-[42px] w-full rounded-xl border border-[#ded9cf] bg-white/95 pl-11 pr-10 text-xs outline-none transition placeholder:text-black/40 focus:border-[#0c7a62]"
+              placeholder="Search customers, phones, locations..."
+              className="h-[40px] sm:h-[42px] w-full rounded-xl border border-[#ded9cf] bg-white/95 pl-9 sm:pl-11 pr-8 sm:pr-10 text-xs outline-none transition placeholder:text-black/40 focus:border-[#0c7a62]"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-black/40 hover:bg-black/5"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-black/40 hover:bg-black/5"
               >
                 <X size={14} />
               </button>
             )}
           </div>
 
-          {/* HEADER ACTIONS */}
-          <div className="ml-auto flex items-center gap-3">
+          {/* HEADER ACTIONS (ALWAYS VISIBLE ON MOBILE) */}
+          <div className="ml-auto flex items-center gap-2 sm:gap-3 shrink-0">
             <button
               type="button"
               onClick={() => markTabAsSeen("notifications")}
-              className="relative rounded-xl p-2.5 hover:bg-black/5 transition"
+              className="relative rounded-xl p-2 sm:p-2.5 hover:bg-black/5 transition shrink-0"
               title="Notifications"
             >
-              <Bell size={20} className="text-[#17221b]" />
+              <Bell size={19} className="text-[#17221b]" />
               {notificationsBadgeCount > 0 && (
-                <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#c2413a] text-[10px] font-bold text-white px-1">
+                <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#c2413a] text-[10px] font-bold text-white px-1">
                   {notificationsBadgeCount}
                 </span>
               )}
@@ -2247,27 +2284,26 @@ export default function AdminDashboard() {
 
             <div className="hidden h-7 w-px bg-[#d8d2c8] sm:block" />
 
+            {/* ADMIN PROFILE LINK WITH REAL PHOTO — ALWAYS VISIBLE ON MOBILE & LAPTOP */}
             <Link
               href="/admin/profile"
-              className="flex items-center gap-2.5 rounded-2xl p-1.5 hover:bg-black/5 transition group"
+              className="flex items-center gap-2 rounded-2xl p-1 sm:p-1.5 hover:bg-black/5 transition group shrink-0"
               title="View Admin Profile & Security Settings"
             >
-              {adminAvatar ? (
-                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#d7b56d]/60 shadow-sm group-hover:ring-2 group-hover:ring-[#063b2c] transition">
-                  <img
-                    src={adminAvatar}
-                    alt={adminProfile?.full_name || "Admin"}
-                    className="h-full w-full object-cover rounded-full"
-                  />
-                </div>
-              ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#d7b56d] text-sm font-bold text-[#17382c] shadow-sm group-hover:ring-2 group-hover:ring-[#063b2c] transition">
-                  {getAdminInitials(adminProfile?.full_name)}
-                </div>
-              )}
+              <div className="relative h-9 w-9 sm:h-10 sm:w-10 shrink-0 overflow-hidden rounded-full border-2 border-[#d7b56d] shadow-sm group-hover:ring-2 group-hover:ring-[#063b2c] transition bg-[#073829]">
+                <Image
+                  src={adminAvatar || "/dinesh-sharma.jpg"}
+                  alt={adminProfile?.full_name || "Dinesh Kumar Sharma"}
+                  width={80}
+                  height={80}
+                  priority
+                  className="h-full w-full object-cover"
+                  unoptimized
+                />
+              </div>
               <div className="hidden text-left leading-tight sm:block">
                 <p className="text-xs font-bold text-[#17221b] group-hover:text-[#063b2c] transition">
-                  {adminProfile?.full_name || "Admin Office"}
+                  {adminProfile?.full_name || "Dinesh Kumar Sharma"}
                 </p>
                 <p className="text-[10px] text-black/50">
                   {adminProfile?.role || "Super Admin"} • Pratapgarh / Prayagraj
@@ -3202,6 +3238,51 @@ export default function AdminDashboard() {
                       >
                         Open Visits Calendar →
                       </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* MOBILE ONLY: BUSINESS OWNER & DESIGNING YOUR DREAM HOME HOUSE CARD */}
+                <div className="mt-6 rounded-2xl border border-[#ded9cf] bg-white p-4 shadow-sm lg:hidden space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-[#d7b56d] shadow-sm bg-[#073829]">
+                      <Image
+                        src={adminAvatar || "/dinesh-sharma.jpg"}
+                        alt={adminProfile?.full_name || "Dinesh Kumar Sharma"}
+                        width={96}
+                        height={96}
+                        priority
+                        className="h-full w-full object-cover"
+                        unoptimized
+                      />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#9b7732]">
+                        Admin &amp; Business Owner
+                      </span>
+                      <h4 className="font-serif text-sm font-bold text-[#17221b]">
+                        {adminProfile?.full_name || "Dinesh Kumar Sharma"}
+                      </h4>
+                      <p className="text-[11px] text-black/60">
+                        House Planning Consultant • Pratapgarh &amp; Prayagraj
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="overflow-hidden rounded-xl border border-white/15 bg-[#094331] shadow-xs">
+                    <div className="relative h-28 w-full overflow-hidden bg-[#073829]">
+                      <Image
+                        src="/home.png"
+                        alt="Designing Your Dream Home"
+                        fill
+                        sizes="400px"
+                        className="object-cover object-center"
+                      />
+                    </div>
+                    <div className="p-2 text-center bg-[#073829] border-t border-white/10">
+                      <p className="font-serif text-xs font-bold text-[#f5d58f] tracking-wide">
+                        Designing Your Dream Home
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -4934,30 +5015,48 @@ export default function AdminDashboard() {
                     <span className="text-[10px] font-bold uppercase tracking-wider text-black/40 block mb-1.5">
                       Client Uploaded Reference / Sketch
                     </span>
-                    <div className="flex items-center gap-3 bg-[#faf8f4] p-2.5 rounded-xl border border-[#eee7db]">
-                      <img
-                        src={
-                          selectedRequest.attachment_url ||
-                          selectedRequest.requirements?.match(/\[ATTACHMENT_URL:([\s\S]*?)\]/)?.[1]
-                        }
-                        alt="Customer Reference"
-                        className="h-14 w-14 object-cover rounded-lg border border-black/10"
-                      />
-                      <div className="text-xs">
-                        <p className="font-bold text-[#17221b]">Rough Sketch / Photo</p>
-                        <a
-                          href={
-                            selectedRequest.attachment_url ||
-                            selectedRequest.requirements?.match(/\[ATTACHMENT_URL:([\s\S]*?)\]/)?.[1]
-                          }
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-[#0c7a62] font-bold hover:underline text-[11px] mt-0.5 inline-block"
-                        >
-                          View Full Screen ↗
-                        </a>
-                      </div>
-                    </div>
+                    {(() => {
+                      const attachUrl =
+                        selectedRequest.attachment_url ||
+                        selectedRequest.requirements?.match(/\[ATTACHMENT_URL:([\s\S]*?)\]/)?.[1];
+                      if (!attachUrl) return null;
+                      return (
+                        <div className="flex items-center gap-3 bg-[#faf8f4] p-3 rounded-2xl border border-[#eee7db]">
+                          <img
+                            src={attachUrl}
+                            alt="Customer Reference"
+                            className="h-16 w-16 object-cover rounded-xl border border-black/10 cursor-pointer shadow-xs hover:opacity-85 transition"
+                            onClick={() => {
+                              setActivePlanPreview({
+                                image: attachUrl,
+                                title: `${selectedRequest.full_name || "Customer"} - Client Reference Sketch / Demo`,
+                                plot: `${selectedRequest.plot_length || "-"} × ${selectedRequest.plot_width || "-"} ${selectedRequest.measurement_unit || "ft"}`,
+                                status: "Client Uploaded Idea",
+                              });
+                            }}
+                          />
+                          <div className="text-xs space-y-1">
+                            <p className="font-bold text-[#17221b]">Rough Sketch / Demo Drawing</p>
+                            <p className="text-[11px] text-black/55">Uploaded by customer as visual reference</p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActivePlanPreview({
+                                  image: attachUrl,
+                                  title: `${selectedRequest.full_name || "Customer"} - Client Reference Sketch / Demo`,
+                                  plot: `${selectedRequest.plot_length || "-"} × ${selectedRequest.plot_width || "-"} ${selectedRequest.measurement_unit || "ft"}`,
+                                  status: "Client Uploaded Idea",
+                                });
+                              }}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-[#063b2c] px-3 py-1.5 text-[11px] font-bold text-[#f4cf72] hover:bg-[#0a4d38] transition cursor-pointer shadow-xs"
+                            >
+                              <Maximize2 size={13} />
+                              <span>Open Full Screen (पूरा देखें)</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </div>
@@ -5392,27 +5491,61 @@ export default function AdminDashboard() {
                   Plan Blueprint Drawing (Image / Map)
                 </label>
                 {uploadPlanImage ? (
-                  <div className="space-y-2">
-                    <div className="relative aspect-[16/10] overflow-hidden rounded-xl border border-[#ded5c4] bg-white">
+                  <div className="space-y-2.5">
+                    <div className="relative flex min-h-[220px] max-h-[60vh] w-full items-center justify-center overflow-hidden rounded-2xl border-2 border-[#0c7a62]/30 bg-[#fcfbfa] p-2.5 shadow-inner">
                       <img
                         src={uploadPlanImage}
-                        alt="Preview"
-                        className="h-full w-full object-contain"
+                        alt="Blueprint Drawing Preview"
+                        className="max-h-[55vh] w-auto max-w-full rounded-xl object-contain shadow-xs"
                       />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setActivePlanPreview({
+                            image: uploadPlanImage,
+                            title: uploadPlanTitle || "Plan Blueprint Drawing Preview",
+                            plot: uploadPlanFileName || "Uploaded File",
+                            status: "Draft Preview",
+                          })
+                        }
+                        className="absolute top-3 right-3 rounded-full bg-black/75 px-3 py-1.5 text-xs font-bold text-white shadow-lg backdrop-blur-sm hover:bg-black transition flex items-center gap-1.5 cursor-pointer"
+                        title="Click to view full screen"
+                      >
+                        <Maximize2 size={13} />
+                        <span>Full Screen (बड़ा देखें)</span>
+                      </button>
                     </div>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="truncate font-semibold text-[#17221b]">
-                        {uploadPlanFileName || "Image selected"}
+                    <div className="flex items-center justify-between text-xs px-1">
+                      <span className="truncate font-semibold text-[#17221b] max-w-[220px]" title={uploadPlanFileName}>
+                        📄 {uploadPlanFileName || "Plan Drawing Selected"}
                       </span>
-                      <label className="cursor-pointer font-bold text-[#0c7a62] hover:underline">
-                        Change File
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleAdminPlanFileChange}
-                          className="hidden"
-                        />
-                      </label>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setActivePlanPreview({
+                              image: uploadPlanImage,
+                              title: uploadPlanTitle || "Plan Blueprint Drawing Preview",
+                              plot: uploadPlanFileName || "Uploaded File",
+                              status: "Draft Preview",
+                            })
+                          }
+                          className="font-bold text-[#0c7a62] hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Maximize2 size={12} />
+                          <span>Inspect Full Size</span>
+                        </button>
+                        <span className="text-black/30">•</span>
+                        <label className="cursor-pointer font-bold text-[#0c7a62] hover:underline">
+                          Change File
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleAdminPlanFileChange}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -5575,14 +5708,38 @@ export default function AdminDashboard() {
               alt={activePlanPreview.title}
               className="max-h-[82vh] max-w-[94vw] rounded-2xl object-contain shadow-2xl"
             />
-            <div className="mt-3 flex items-center gap-3 rounded-full bg-black/75 px-5 py-2 text-xs font-medium text-white backdrop-blur-sm">
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2.5 rounded-full bg-black/80 px-5 py-2 text-xs font-medium text-white backdrop-blur-md border border-white/10 shadow-xl">
               <span className="font-bold text-[#f4cf72]">{activePlanPreview.title}</span>
-              <span>•</span>
-              <span>{activePlanPreview.plot}</span>
-              <span>•</span>
-              <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px]">
-                {activePlanPreview.status}
-              </span>
+              {activePlanPreview.plot && (
+                <>
+                  <span className="text-white/40">•</span>
+                  <span className="text-white/80">{activePlanPreview.plot}</span>
+                </>
+              )}
+              {activePlanPreview.status && (
+                <>
+                  <span className="text-white/40">•</span>
+                  <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px]">
+                    {activePlanPreview.status}
+                  </span>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const a = document.createElement("a");
+                  a.href = activePlanPreview.image;
+                  a.download = `${(activePlanPreview.title || "sarda-drawing").replace(/[^\w-]/g, "_")}.jpg`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                }}
+                className="ml-1 inline-flex items-center gap-1 rounded-full bg-[#f4cf72] px-3 py-1 text-[11px] font-bold text-[#063b2c] hover:bg-white transition cursor-pointer shadow-sm"
+              >
+                <Download size={12} />
+                <span>Download (डाउनलोड)</span>
+              </button>
             </div>
           </div>
         </div>

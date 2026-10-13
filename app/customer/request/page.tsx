@@ -378,18 +378,56 @@ export default function CustomerRequestPage() {
       .filter(Boolean)
       .join(" ");
 
-    // Read uploaded sketch/document into Data URL if attached
+    // Compress & read uploaded sketch/document into Data URL if attached
     let attachedDataUrl: string | null = null;
     if (files.length > 0) {
       const firstImage = files.find((f) => f.type.startsWith("image/") || f.type === "application/pdf") || files[0];
       if (firstImage) {
         try {
-          attachedDataUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve((e.target?.result as string) || "");
-            reader.onerror = reject;
-            reader.readAsDataURL(firstImage);
-          });
+          if (firstImage.type.startsWith("image/")) {
+            attachedDataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                const rawUrl = (e.target?.result as string) || "";
+                if (!rawUrl) return resolve("");
+                const img = new window.Image();
+                img.onload = () => {
+                  let { width, height } = img;
+                  const maxDim = 1600;
+                  if (width > maxDim || height > maxDim) {
+                    if (width > height) {
+                      height = Math.round((height * maxDim) / width);
+                      width = maxDim;
+                    } else {
+                      width = Math.round((width * maxDim) / height);
+                      height = maxDim;
+                    }
+                  }
+                  const canvas = document.createElement("canvas");
+                  canvas.width = width;
+                  canvas.height = height;
+                  const ctx = canvas.getContext("2d");
+                  if (ctx) {
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL("image/jpeg", 0.85));
+                  } else {
+                    resolve(rawUrl);
+                  }
+                };
+                img.onerror = () => resolve(rawUrl);
+                img.src = rawUrl;
+              };
+              reader.onerror = reject;
+              reader.readAsDataURL(firstImage);
+            });
+          } else {
+            attachedDataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = (e) => resolve((e.target?.result as string) || "");
+              reader.onerror = reject;
+              reader.readAsDataURL(firstImage);
+            });
+          }
         } catch (storageErr) {
           console.warn("Could not read attached file preview:", storageErr);
         }

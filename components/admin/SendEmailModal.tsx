@@ -74,6 +74,10 @@ export default function SendEmailModal({
   const applyTemplate = (templateKey: TemplateKey, target = customer) => {
     setSelectedTemplate(templateKey);
     const clientName = target?.full_name ? target.full_name.trim() : "Client";
+    const siteUrl =
+      typeof window !== "undefined" && window.location.origin && !window.location.origin.includes("localhost")
+        ? window.location.origin
+        : "https://sarda-homeplan.vercel.app";
 
     switch (templateKey) {
       case "consultation":
@@ -88,7 +92,7 @@ export default function SendEmailModal({
           `Sarda Homeplan (Architectural Planning & Vastu)\n` +
           `Phone: +91 9918833851\n` +
           `Office: Pratapgarh / Prayagraj\n` +
-          `Website: https://sardahomeplan.com`
+          `Website: ${siteUrl}`
         );
         break;
 
@@ -102,7 +106,7 @@ export default function SendEmailModal({
           `Dinesh Kumar Sharma\n` +
           `Sarda Homeplan\n` +
           `Phone: +91 9918833851\n` +
-          `Website: https://sardahomeplan.com`
+          `Website: ${siteUrl}`
         );
         break;
 
@@ -116,7 +120,7 @@ export default function SendEmailModal({
           `Dinesh Kumar Sharma\n` +
           `Head Architect, Sarda Homeplan\n` +
           `Phone: +91 9918833851\n` +
-          `Website: https://sardahomeplan.com`
+          `Website: ${siteUrl}`
         );
         break;
 
@@ -129,13 +133,14 @@ export default function SendEmailModal({
           `Warm regards,\n` +
           `Dinesh Kumar Sharma\n` +
           `Sarda Homeplan\n` +
-          `Phone: +91 9918833851`
+          `Phone: +91 9918833851\n` +
+          `Website: ${siteUrl}`
         );
         break;
 
       case "custom":
         setSubject(`Sarda Homeplan — Direct Message for ${clientName}`);
-        setBody(`Namaste ${clientName} ji,\n\n\n\nWarm regards,\nDinesh Kumar Sharma\nSarda Homeplan`);
+        setBody(`Namaste ${clientName} ji,\n\n\n\nWarm regards,\nDinesh Kumar Sharma\nSarda Homeplan\nPhone: +91 9918833851\nWebsite: ${siteUrl}`);
         break;
     }
   };

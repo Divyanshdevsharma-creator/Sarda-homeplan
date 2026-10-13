@@ -43,6 +43,7 @@ import {
   RefreshCw,
   ChevronUp,
   Layers,
+  Download,
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase-client";
@@ -1239,15 +1240,48 @@ export default function CustomerDashboardPage() {
 
     const reader = new FileReader();
     reader.onload = async (e) => {
-      const dataUrl = e.target?.result as string;
-      if (dataUrl) {
-        setUploadedSketch(dataUrl);
+      const rawUrl = e.target?.result as string;
+      if (rawUrl) {
+        // Compress client sketch to prevent database payload failure
+        let finalDataUrl = rawUrl;
+        try {
+          finalDataUrl = await new Promise<string>((resolve) => {
+            const img = new window.Image();
+            img.onload = () => {
+              let { width, height } = img;
+              const maxDim = 1600;
+              if (width > maxDim || height > maxDim) {
+                if (width > height) {
+                  height = Math.round((height * maxDim) / width);
+                  width = maxDim;
+                } else {
+                  width = Math.round((width * maxDim) / height);
+                  height = maxDim;
+                }
+              }
+              const canvas = document.createElement("canvas");
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext("2d");
+              if (ctx) {
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL("image/jpeg", 0.85));
+              } else {
+                resolve(rawUrl);
+              }
+            };
+            img.onerror = () => resolve(rawUrl);
+            img.src = rawUrl;
+          });
+        } catch (_) {}
+
+        setUploadedSketch(finalDataUrl);
         setUploadedSketchName(file.name);
         if (customerRequest?.id) {
           const { error: attErr } = await supabase
             .from("customer_requests")
             .update({
-              attachment_url: dataUrl,
+              attachment_url: finalDataUrl,
               updated_at: new Date().toISOString(),
             })
             .eq("id", customerRequest.id);
@@ -1258,7 +1292,7 @@ export default function CustomerDashboardPage() {
             await supabase
               .from("customer_requests")
               .update({
-                requirements: `${reqs}\n\n[ATTACHMENT_URL:${dataUrl}]`,
+                requirements: `${reqs}\n\n[ATTACHMENT_URL:${finalDataUrl}]`,
                 updated_at: new Date().toISOString(),
               })
               .eq("id", customerRequest.id);
@@ -3125,12 +3159,12 @@ export default function CustomerDashboardPage() {
                                 image: adminRoughDraft.image,
                               })
                             }
-                            className="group relative aspect-[16/9] w-full cursor-pointer overflow-hidden rounded-xl border border-[#ddd5c2] bg-white shadow-sm"
+                            className="group relative aspect-[16/9] w-full cursor-pointer overflow-hidden rounded-xl border border-[#ddd5c2] bg-[#f8f5ee] shadow-sm flex items-center justify-center p-2"
                           >
                             <img
                               src={adminRoughDraft.image}
                               alt={adminRoughDraft.title}
-                              className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                              className="max-h-full max-w-full w-auto h-auto object-contain transition duration-300 group-hover:scale-102"
                             />
                             <div className="absolute inset-0 bg-black/30 opacity-0 transition group-hover:opacity-100 flex items-center justify-center">
                               <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-[#17221b] shadow flex items-center gap-1.5">
@@ -3312,12 +3346,12 @@ export default function CustomerDashboardPage() {
                                 image: adminFinalBlueprint.image,
                               })
                             }
-                            className="group relative aspect-[16/9] w-full cursor-pointer overflow-hidden rounded-xl border border-[#ddd5c2] bg-white shadow-sm"
+                            className="group relative aspect-[16/9] w-full cursor-pointer overflow-hidden rounded-xl border border-[#ddd5c2] bg-[#f8f5ee] shadow-sm flex items-center justify-center p-2"
                           >
                             <img
                               src={adminFinalBlueprint.image}
                               alt={adminFinalBlueprint.title}
-                              className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                              className="max-h-full max-w-full w-auto h-auto object-contain transition duration-300 group-hover:scale-102"
                             />
                             <div className="absolute inset-0 bg-black/30 opacity-0 transition group-hover:opacity-100 flex items-center justify-center">
                               <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-[#17221b] shadow flex items-center gap-1.5">
@@ -4737,6 +4771,14 @@ export default function CustomerDashboardPage() {
               <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px]">
                 {activePlanPreview.status}
               </span>
+              <a
+                href={activePlanPreview.image}
+                download={`${(activePlanPreview.title || "house-plan").replace(/\s+/g, "_")}.png`}
+                className="flex items-center gap-1.5 rounded-full bg-[#0c7a62] px-3.5 py-1 text-[11px] font-bold text-white shadow-md hover:bg-[#096650] transition"
+              >
+                <Download size={13} strokeWidth={2.5} />
+                Download (डाउनलोड करें)
+              </a>
             </div>
           </div>
         </div>
