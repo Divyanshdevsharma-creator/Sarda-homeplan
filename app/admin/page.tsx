@@ -710,7 +710,18 @@ export default function AdminDashboard() {
         const {
           data: { user },
         } = await supabase.auth.getUser();
-        if (!user) {
+        const isAdminUser = Boolean(
+          user && (
+            user.email === "admin@saradahomeplan.com" ||
+            user.email === "admin@sardahomeplan.com" ||
+            user.email === "divyanshdevsharma0264@gmail.com" ||
+            user.email === "dkvaid1978@gmail.com" ||
+            user.user_metadata?.role === "Super Admin" ||
+            user.user_metadata?.role === "Admin" ||
+            user.user_metadata?.is_admin === true
+          )
+        );
+        if (!isAdminUser) {
           router.push("/admin/login");
           return;
         }

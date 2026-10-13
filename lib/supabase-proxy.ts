@@ -71,14 +71,18 @@ export async function updateSession(request: NextRequest) {
   const isCustomerAuthPage =
     pathname === "/customer/login" || pathname === "/customer/signup";
 
-  if (isCustomerAuthPage && isCustomerLoggedIn) {
-    const nextParam = request.nextUrl.searchParams.get("next");
-    if (nextParam && nextParam.startsWith("/") && !nextParam.startsWith("/customer/login")) {
-      const url = new URL(nextParam, request.url);
+  if (isCustomerAuthPage) {
+    const isSwitching = request.nextUrl.searchParams.has("switch");
+    if (isCustomerLoggedIn && !isSwitching) {
+      const nextParam = request.nextUrl.searchParams.get("next");
+      if (nextParam && nextParam.startsWith("/") && !nextParam.startsWith("/customer/login")) {
+        const url = new URL(nextParam, request.url);
+        return NextResponse.redirect(url);
+      }
+      const url = new URL("/customer/dashboard", request.url);
       return NextResponse.redirect(url);
     }
-    const url = new URL("/customer/dashboard", request.url);
-    return NextResponse.redirect(url);
+    return supabaseResponse;
   }
 
   // 3. Admin Routes Protection
@@ -96,6 +100,7 @@ export async function updateSession(request: NextRequest) {
     authUser && (
       authUser.email === "admin@saradahomeplan.com" ||
       authUser.email === "admin@sardahomeplan.com" ||
+      authUser.email === "divyanshdevsharma0264@gmail.com" ||
       authUser.email === "dkvaid1978@gmail.com" ||
       authUser.user_metadata?.role === "Super Admin" ||
       authUser.user_metadata?.role === "Admin" ||
@@ -105,24 +110,27 @@ export async function updateSession(request: NextRequest) {
 
   const isAdminLoggedIn = Boolean(hasAdminCookie || isAdminAuthUser);
 
-  // If user is logged in as customer and NOT an admin, forbid entry to admin
-  if (isAdminRoute && hasCustomerCookie && !isAdminLoggedIn) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/customer/dashboard";
-    url.searchParams.set("error", "unauthorized_admin_access_denied");
-    return NextResponse.redirect(url);
+  // If on admin login / forgot-password page:
+  // NEVER redirect to /customer/dashboard!
+  // If already logged in as admin AND not explicitly switching, redirect to /admin.
+  if (isAdminLoginPage) {
+    const isForceSwitch =
+      request.nextUrl.searchParams.has("switch") ||
+      request.nextUrl.searchParams.has("logout");
+    if (isAdminLoggedIn && !isForceSwitch) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/admin";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+    return supabaseResponse;
   }
 
-  if (isAdminRoute && !isAdminLoginPage && !isAdminLoggedIn) {
+  // If accessing a protected admin route and not authenticated as admin,
+  // redirect to /admin/login so they can enter admin credentials (NEVER to customer dashboard!)
+  if (isAdminRoute && !isAdminLoggedIn) {
     const url = request.nextUrl.clone();
     url.pathname = "/admin/login";
-    return NextResponse.redirect(url);
-  }
-
-  if (isAdminLoginPage && isAdminLoggedIn) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/admin";
-    url.search = "";
     return NextResponse.redirect(url);
   }
 

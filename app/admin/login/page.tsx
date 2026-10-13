@@ -61,6 +61,14 @@ export default function AdminLoginPage() {
 
       const persistAdminSession = (emailVal: string, nameVal = "Admin", roleVal = "Super Admin") => {
         if (typeof window !== "undefined") {
+          // Clear any conflicting customer cookies and session
+          document.cookie = "sarda_customer_logged_in=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+          document.cookie = "sarada_customer_logged_in=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+          localStorage.removeItem("sarda_customer_session");
+          localStorage.removeItem("sarada_customer_session");
+          localStorage.removeItem("sarda_customer_logged_in");
+          localStorage.removeItem("sarada_customer_logged_in");
+
           localStorage.setItem("sarada_admin_logged_in", "true");
           localStorage.setItem("sarda_admin_logged_in", "true");
           localStorage.setItem("sarada_admin_email", emailVal);
@@ -91,31 +99,16 @@ export default function AdminLoginPage() {
         const { data: adminRecord } = await adminQuery.maybeSingle();
 
         if (adminRecord) {
-          const isDineshOwner =
-            adminRecord.email.toLowerCase() === "dkvaid1978@gmail.com" ||
-            adminRecord.mobile === "9918833851";
-
           const isPasswordValid =
             adminRecord.password === password ||
-            (isDineshOwner && (
-              password.length >= 6 ||
-              password.toLowerCase().startsWith("dinesh") ||
-              password === "admin123" ||
-              password === "sarda123" ||
-              password === "sarada123" ||
-              password === "password123"
-            )) ||
-            password === "admin123" ||
-            password === "sarda123" ||
-            password === "sarada123";
+            adminRecord.password === password.trim() ||
+            (adminRecord.email?.toLowerCase() === "dkvaid1978@gmail.com" &&
+              (password === "Dinesh@5610" || password === "dinesh@5610")) ||
+            (adminRecord.email?.toLowerCase() === "divyanshdevsharma0264@gmail.com" &&
+              (password === "Divyansh@5610" || password === "divyansh@5610")) ||
+            password === "admin123";
 
           if (isPasswordValid) {
-            // Keep database password in sync if a valid new password was used
-            if (adminRecord.password !== password && password.length >= 6) {
-              try {
-                await supabase.from("admins").update({ password }).eq("id", adminRecord.id);
-              } catch (_) {}
-            }
             persistAdminSession(
               adminRecord.email,
               adminRecord.full_name || "Dinesh Kumar Sharma",
@@ -130,31 +123,58 @@ export default function AdminLoginPage() {
         console.warn("Admins table check notice:", adminTableErr);
       }
 
-      // 3. Fallback: Primary Business Owner & Master Admin Credentials Check
-      const isMasterAdminEmail =
-        inputVal.toLowerCase() === "admin@sardahomeplan.com" ||
-        inputVal.toLowerCase() === "admin@saradahomeplan.com" ||
-        inputVal.toLowerCase() === "admin" ||
-        inputVal.toLowerCase() === "dkvaid1978@gmail.com";
-      const isMasterAdminMobile =
-        cleanMobile === "9876543210" ||
-        cleanMobile === "9918833851" ||
-        cleanMobile === "8423406049" ||
-        cleanMobile.length >= 10;
-      const isMasterPassword =
-        password === "admin123" ||
-        password === "sarda123" ||
-        password === "sarada123" ||
-        password === "password123" ||
-        password.toLowerCase().startsWith("dinesh") ||
-        password.length >= 6;
+      // 3. Fallback: Check known registered business admin credentials
+      const adminCreds: { [key: string]: { pass: string[]; name: string; role: string; email: string } } = {
+        "dkvaid1978@gmail.com": {
+          pass: ["Dinesh@5610", "dinesh@5610"],
+          name: "Dinesh Kumar Sharma",
+          role: "Admin",
+          email: "dkvaid1978@gmail.com",
+        },
+        "9918833851": {
+          pass: ["Dinesh@5610", "dinesh@5610"],
+          name: "Dinesh Kumar Sharma",
+          role: "Admin",
+          email: "dkvaid1978@gmail.com",
+        },
+        "divyanshdevsharma0264@gmail.com": {
+          pass: ["Divyansh@5610", "divyansh@5610"],
+          name: "Divyansh Dev Sharma",
+          role: "Admin",
+          email: "divyanshdevsharma0264@gmail.com",
+        },
+        "8423406049": {
+          pass: ["Divyansh@5610", "divyansh@5610"],
+          name: "Divyansh Dev Sharma",
+          role: "Admin",
+          email: "divyanshdevsharma0264@gmail.com",
+        },
+        "admin@saradahomeplan.com": {
+          pass: ["admin123"],
+          name: "Admin Office",
+          role: "Super Admin",
+          email: "admin@saradahomeplan.com",
+        },
+        "admin@sardahomeplan.com": {
+          pass: ["admin123"],
+          name: "Admin Office",
+          role: "Super Admin",
+          email: "admin@sardahomeplan.com",
+        },
+        "9876543210": {
+          pass: ["admin123"],
+          name: "Admin Office",
+          role: "Super Admin",
+          email: "admin@saradahomeplan.com",
+        },
+      };
 
-      if ((isMasterAdminEmail || (loginMethod === "mobile" && isMasterAdminMobile)) && isMasterPassword) {
-        const adminName =
-          inputVal.toLowerCase() === "dkvaid1978@gmail.com" || cleanMobile === "9918833851"
-            ? "Dinesh Kumar Sharma"
-            : "Admin Office";
-        persistAdminSession(inputVal, adminName, "Admin");
+      const matchedAdmin =
+        adminCreds[inputVal.toLowerCase()] ||
+        (cleanMobile ? adminCreds[cleanMobile] : null);
+
+      if (matchedAdmin && matchedAdmin.pass.includes(password.trim())) {
+        persistAdminSession(matchedAdmin.email, matchedAdmin.name, matchedAdmin.role);
         setIsLoading(false);
         window.location.href = "/admin";
         return;
@@ -162,22 +182,11 @@ export default function AdminLoginPage() {
 
       setIsLoading(false);
       setErrorMessage(
-        error?.message || "Invalid admin credentials. Please check your email/mobile and password."
+        "गलत एडमिन ईमेल/मोबाइल या पासवर्ड। कृपया सही एडमिन क्रेडेंशियल्स दर्ज करें। (Invalid admin credentials.)"
       );
     } catch (err: any) {
       setIsLoading(false);
-      // If network/rate error, check master credentials
-      if (password.length >= 6) {
-        if (typeof window !== "undefined") {
-          localStorage.setItem("sarada_admin_logged_in", "true");
-          localStorage.setItem("sarda_admin_logged_in", "true");
-          document.cookie = "sarada_admin_logged_in=true; path=/; max-age=86400; SameSite=Lax";
-          document.cookie = "sarda_admin_logged_in=true; path=/; max-age=86400; SameSite=Lax";
-        }
-        window.location.href = "/admin";
-        return;
-      }
-      setErrorMessage(err.message || "An unexpected error occurred during login.");
+      setErrorMessage(err.message || "An unexpected error occurred during admin login.");
     }
   };
 

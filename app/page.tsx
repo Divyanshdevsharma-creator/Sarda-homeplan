@@ -2833,13 +2833,26 @@ export default function Home() {
                       ? "House map drafting progress dekhein, site visit schedule karein, revisions mangein aur blueprint download karein."
                       : "Track plan progress, schedule plot visits, review draft house maps, and download blueprints."}
                   </p>
-                  <div className="mt-2.5 flex items-center gap-1.5 text-xs font-bold text-[#0c7a62]">
-                    <span>
+                  <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-[#0c7a62]">
                       {currentUser
                         ? (lang === "hi" ? "कस्टमर डैशबोर्ड खोलें" : "Open Customer Dashboard")
                         : (lang === "hi" ? "कस्टमर के रूप में लॉगिन करें" : "Login as Customer")}
+                      <ArrowRight size={13} className="group-hover:translate-x-1 transition-transform" />
                     </span>
-                    <ArrowRight size={13} className="group-hover:translate-x-1 transition-transform" />
+                    {currentUser && (
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          setLoginRoleModalOpen(false);
+                          window.location.href = "/customer/login?switch=true";
+                        }}
+                        className="cursor-pointer text-[11px] font-semibold text-[#0c7a62] underline hover:text-[#063b2c]"
+                      >
+                        {lang === "hi" ? "दूसरे खाते से लॉगिन करें" : "Switch Account"}
+                      </span>
+                    )}
                   </div>
                 </div>
               </Link>

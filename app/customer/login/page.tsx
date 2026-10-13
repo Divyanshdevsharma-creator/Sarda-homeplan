@@ -64,9 +64,34 @@ export default function CustomerLoginPage() {
       // Check if user is already authenticated
       const checkExistingSession = async () => {
         try {
+          const params = new URLSearchParams(window.location.search);
+          if (params.has("switch") || params.has("logout")) {
+            const supabase = createClient();
+            await supabase.auth.signOut();
+            localStorage.removeItem("sarda_customer_session");
+            localStorage.removeItem("sarada_customer_session");
+            localStorage.removeItem("sarda_customer_logged_in");
+            localStorage.removeItem("sarada_customer_logged_in");
+            document.cookie = "sarda_customer_logged_in=; path=/; max-age=0;";
+            document.cookie = "sarada_customer_logged_in=; path=/; max-age=0;";
+            return;
+          }
+
           const supabase = createClient();
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user) {
+            const email = (session.user.email || "").toLowerCase();
+            const isAdmin =
+              email === "admin@saradahomeplan.com" ||
+              email === "admin@sardahomeplan.com" ||
+              email === "divyanshdevsharma0264@gmail.com" ||
+              email === "dkvaid1978@gmail.com" ||
+              session.user.user_metadata?.role === "Super Admin" ||
+              session.user.user_metadata?.role === "Admin" ||
+              session.user.user_metadata?.is_admin === true;
+            if (isAdmin) {
+              return;
+            }
             router.replace("/customer/dashboard");
           }
         } catch (_) {}
@@ -100,6 +125,15 @@ export default function CustomerLoginPage() {
 
   const persistCustomerSession = (payload: any) => {
     if (typeof window !== "undefined") {
+      // Clear admin session so roles never collide
+      document.cookie = "sarada_admin_logged_in=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      document.cookie = "sarda_admin_logged_in=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      localStorage.removeItem("sarada_admin_logged_in");
+      localStorage.removeItem("sarda_admin_logged_in");
+      localStorage.removeItem("sarada_admin_email");
+      localStorage.removeItem("sarada_admin_name");
+      localStorage.removeItem("sarada_admin_role");
+
       localStorage.setItem("sarda_customer_session", JSON.stringify(payload));
       localStorage.setItem("sarada_customer_session", JSON.stringify(payload));
       localStorage.setItem("sarda_customer_logged_in", "true");
